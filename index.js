@@ -1,5 +1,6 @@
 var uuid = require('node-uuid');
 var express = require('express');
+var crypto = require('crypto');
 var app = express();
 var port = 3700;
 
@@ -49,6 +50,58 @@ function logoff(socket, data) {
    delete clients[data.uuid];
 }
 
+
+// Crypto configuration
+const IV_SIZE = 16;
+const INTEGER_LEN = 4;
+const ITERATIONS = 65536;
+const KEY_LEN = 16;
+const DEFAULT_ENCRYPTION_ALGORITHM = 'aes-128-cbc';
+const DEFAULT_ENCODING = 'hex';
+
+function client_encrypt(value, key, salt, callback) {
+
+   // Step 1: Generate cryptographically strong pseudo-random IV
+   crypto.randomBytes(IV_SIZE, function(err, iv) {
+      if(err) {
+         return callback(err);
+      }
+      
+      // Step 2: Password based key encryption
+      crypto.pbkdf2(key, salt, ITERATIONS, KEY_LEN, function(err, k) {
+
+         var ciphertext;
+         cipher = crypto.createCipheriv(DEFAULT_ENCRYPTION_ALGORITHM, k, iv);
+         ciphertext = cipher.update(value);
+         ciphertext += cipher.final('binary');
+
+         // Setup binary buffers
+         var n_buffer = new Buffer(INTEGER_LEN);
+         n_buffer.writeUInt32BE(IV_SIZE, 0); // BIG_ENDIAN
+
+         // console.log('n_buffer:' + n_buffer.toString());
+
+         var i_buffer = new Buffer(iv, 'binary');
+         var c_buffer = new Buffer(ciphertext, 'binary');
+
+         // Assemble resultant buffer
+         var result = new Buffer(n_buffer.length + i_buffer.length + c_buffer.length);
+         n_buffer.copy(result, 0, 0, n_buffer.length);
+         i_buffer.copy(result, n_buffer.length, 0, i_buffer.length);
+         c_buffer.copy(result, n_buffer.length + i_buffer.length, 0, c_buffer.length);
+
+         callback(null, result.toString(DEFAULT_ENCODING));
+
+         // console.log('Integer Buffer: ' + JSON.stringify(n_buffer));
+         // console.log('IV Size Buffer: ' + i_buffer.toString('base64'));
+         // console.log('Ciphertext Buffer: ' + c_buffer.toString('base64'));
+         // console.log('Result Buffer: ' + JSON.stringify(result));
+
+         // console.log(result.toString('base64'));
+      });
+   });
+}
+
 // Maintain list of authenticated clients
 var clients = {};
 
@@ -81,7 +134,8 @@ io.sockets.on('connection', function (socket) {
             username: data.username,
             ip: socket.handshake.address.address,
             port: socket.handshake.address.port,
-            socket: socket
+            socket: socket,
+            crypto: { key: uuid.v4(), salt: uuid.v4(), iv_size: IV_SIZE }
          };
 
          // Join room
@@ -125,7 +179,9 @@ io.sockets.on('connection', function (socket) {
          return false;
       }
 
-      // Sanitize data to broadcast
+      // Send plaintext
+
+      // Sanitize
       var username = clients[data.uuid].username;
       var send = {
          name: auth[username].name,
@@ -137,6 +193,20 @@ io.sockets.on('connection', function (socket) {
 
       // Broadcast on all authenticated io.sockets
       io.sockets.in('auth').emit('message', send);
+
+      // Send encrypted
+      var client_crypto = clients[data.uuid].crypto;
+      client_encrypt(send.message, client_crypto.key, client_crypto.salt, function(err, ciphertext) {
+
+         // Sanitize
+         var client_encoded = send;
+
+         client_encoded.key = client_crypto.key;
+         client_encoded.salt = client_crypto.salt;
+         client_encoded.message = ciphertext;
+
+         socket.emit('encoded', client_encoded);
+      });
    });
    
 });

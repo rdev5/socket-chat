@@ -10,13 +10,26 @@ html
 
         script(type='text/javascript').
          $(document).ready(function() {
-            $('#field').focus();
+            $('#username').focus();
+            
             $('#field').keyup(function(e) {
                if (e.keyCode == 13) {
                   $('#send').trigger('click');
                }
-            })
-         })
+            });
+
+            $('#username').keyup(function(e) {
+               if (e.keyCode == 13) {
+                  $('#authenticate').trigger('click');
+               }
+            });
+
+            $('#password').keyup(function(e) {
+               if (e.keyCode == 13) {
+                  $('#authenticate').trigger('click');
+               }
+            });
+         });
     body
         span#name
         #content(style='width: 500px; height: 300px; margin: 0 0 10px 0; border: solid 1px #999; overflow-y: scroll;')
@@ -31,3 +44,7 @@ html
             input#field(style='width:350px;')
             input#send(type='button', value='Send')
             input#logoff(type='button', value='Logoff')
+        #crypto
+            div#ciphertext
+            div#key
+            div#salt
