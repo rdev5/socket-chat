@@ -13,8 +13,7 @@ window.onload = function() {
    $('#name').html('<h1>socket.io</h1>');
 
    socket.on('reload', function (data) {
-      socket.disconnect();
-      location.reload(true);
+      $('#logoff').trigger('click');
    });
 
    socket.on('ident', function (data) {
@@ -38,7 +37,12 @@ window.onload = function() {
    socket.on('online', function (data) {
       var html = '';
       for (var client_uuid in data) {
-         html += '<input type="checkbox" name="client_select" value="' + client_uuid + '" /> ' + data[client_uuid].name + '<br />';
+         html += '<input type="checkbox" name="client_select" value="' + client_uuid + '" /> ';
+         if (data[client_uuid].admin) {
+            html += '@';
+         }
+         html += data[client_uuid].name;
+         html += '<br />';
       }
 
       $('#online').html(html);
@@ -51,6 +55,9 @@ window.onload = function() {
          for (var i = 0; i < messages.length; i++) {
 
             html += '<strong>';
+            if (messages[i].admin) {
+               html += '@';
+            }
             html += (messages[i].name ? messages[i].name : 'Server');
             if (messages[i].decoded) {
                html += '*';
