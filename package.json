@@ -5,7 +5,8 @@
     "dependencies": {
         "socket.io": "latest",
         "express": "latest",
-        "jade": "latest"
+        "jade": "latest",
+         "yaml-config": "~0.3.0"
     },
     "author": "developer"
 }

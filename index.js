@@ -1,6 +1,7 @@
 var uuid = require('node-uuid');
 var express = require('express');
 var crypto = require('crypto');
+var Crypto = require('./crypto');
 var app = express();
 var port = 3700;
 
@@ -37,8 +38,6 @@ function is_empty(map) {
 }
 
 function broadcast(emitter, data, excludes, includes) {
-   console.log('INCLUDES: ');
-   console.log(includes);
    for (var uuid in clients) {
       if (excludes !== undefined && excludes.length > 0 && excludes.indexOf(uuid) !== -1)
          continue;
@@ -186,6 +185,10 @@ var clients = {};
 
 io.sockets.on('connection', function (socket) {
 
+   // Generate UUID for authenticated client
+   while (client_uuid === undefined || clients[client_uuid] !== undefined)
+      var client_uuid = uuid.v4();
+
    // Registered users (TODO: Pull from Couchbase)
    var auth = get_users();
 
@@ -199,10 +202,6 @@ io.sockets.on('connection', function (socket) {
       var auth_user = auth[data.username];
 
       if (auth_user !== undefined && auth_user.password === data.password) {
-
-         // Generate UUID for authenticated client
-         while (client_uuid === undefined || clients[client_uuid] !== undefined)
-            var client_uuid = uuid.v4();
 
          // Save authenticated client details
          clients[client_uuid] = {
@@ -244,6 +243,17 @@ io.sockets.on('connection', function (socket) {
       logoff(socket, data);
    });
 
+   // Handle requests to decode messages
+   socket.on('decode', function (data) {
+      Crypto.Config.secret_key = data.key;
+      Crypto.Config.salt = data.salt;
+      Crypto.Reload();
+
+      Crypto.Decrypt(data.message, function (err, plaintext) {
+         socket.emit('message', { name: data.name, message: plaintext, decoded: true });
+      });
+   });
+
    // List for socket to emit data to 'send'
    socket.on('send', function (data) {
 
@@ -281,10 +291,14 @@ io.sockets.on('connection', function (socket) {
          client_encoded.key = generate_key();
          client_encoded.salt = generate_salt();
 
-         client_encrypt(send.message, client_encoded.key, client_encoded.salt, function(err, ciphertext) {
+         Crypto.Config.secret_key = client_encoded.key;
+         Crypto.Config.salt = client_encoded.salt;
+         Crypto.Reload();
+
+         Crypto.Encrypt(send.message, function(err, ciphertext) {
             client_encoded.message = ciphertext;
 
-            socket.emit('message', { name: '(Sent to ' + recipients.length + ' recipients)', message: data.message } );
+            recipients.push(client_uuid);
             broadcast('encoded', client_encoded, [], recipients);
          });
       } else {

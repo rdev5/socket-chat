@@ -44,7 +44,12 @@ window.onload = function() {
          var html = ''
          for (var i = 0; i < messages.length; i++) {
 
-            html += '<strong>' + (messages[i].name ? messages[i].name : 'Server') + ':</strong> ';
+            html += '<strong>';
+            html += (messages[i].name ? messages[i].name : 'Server');
+            if (messages[i].decoded) {
+               html += '*';
+            }
+            html += ':</strong> ';
             html += messages[i].message + '<br />';
          }
          content.innerHTML = html;
@@ -55,7 +60,13 @@ window.onload = function() {
       }
    });
 
+   // Decode on-the-fly
    socket.on('encoded', function (data) {
+      socket.emit('decode', data);
+   });
+
+   // Don't decoded
+   socket.on('encoded_old', function (data) {
       if (!data.key || !data.salt) {
          console.log('Error (no crypto): ' + data);
          return;
