@@ -1,9 +1,10 @@
 /*
  * Crypto Module
  * @author Matt Borja (rdev5)
- * @version 0.1.0
+ * @version 0.1.1
  *
  * Featured methods:
+ * - Override default configuration by modifying Crypto.Config object and calling Crypto.Reload()
  * - UUID
  * - Sign() and Verify()
  * - Cipher() and Decipher()
