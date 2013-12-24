@@ -201,7 +201,8 @@ function get_users() {
    var users = {
       matt: { name: 'Matt', password: 'matt123', admin: true },
       bob: { name: 'Bob', password: 'bob456' },
-      john: { name: 'John', password: 'john789' }
+      john: { name: 'John', password: 'john789' },
+      demo: { name: 'Guest', password: 'demo' }
    };
 
    return users;
@@ -269,7 +270,7 @@ io.sockets.on('connection', function (socket) {
 
          // Send UUID
          socket.emit('message', { message: 'Authentication successful. Welcome back, ' + auth[data.username].name + '!' });
-         socket.emit('ident', { success: true, uuid: client_uuid, name: auth[data.username].name });
+         socket.emit('ident', { success: true, uuid: client_uuid, name: auth[data.username].name, admin: auth[data.username].admin });
 
          // Broadcast user online to all but self
          broadcast('message', { message: auth[data.username].name + ' is now online.' }, [ client_uuid ]);
