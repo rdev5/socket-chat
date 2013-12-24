@@ -2,7 +2,8 @@ window.onload = function() {
 
    var messages = [];
    var port = 3700;
-   var socket = io.connect('http://localhost:' + port);
+   var server_ip = $('#server').text();
+   var socket = io.connect('http://' + server_ip + ':' + port);
 
    var field = document.getElementById('field');
    var sendButton = document.getElementById('send');

@@ -2,9 +2,43 @@ var uuid = require('node-uuid');
 var express = require('express');
 var crypto = require('crypto');
 var Crypto = require('./crypto');
+var os = require('os');
 var app = express();
 var port = 3700;
 
+function local_addr() {
+  var ifs = os.networkInterfaces();
+  var addrs = [];
+  for (var i in ifs) {
+    if (ifs.hasOwnProperty(i)) {
+      for (var j = 0; j < ifs[i].length; ++j) {
+        if (!ifs[i][j].internal) {
+          if (ifs[i][j].family === 'IPv4') {
+            addrs.push(ifs[i][j].address);
+          }
+        }
+      }
+    }
+  }
+  console.log(addrs[0]);
+  return addrs[0];
+};
+
+var CORS = function(req, res, next) {
+   res.header('Access-Control-Allow-Origin', '*');
+   res.header('Access-Control-Allow-Headers', 'Authorization, Content-Length, X-Requested-With');
+   res.header('Access-Control-Expose-Headers', 'Authorization, Content-Length, X-Requested-With');
+   res.header('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS');
+
+   // intercept OPTIONS method
+   if ('OPTIONS' == req.method) {
+      res.send(200);
+   } else {
+      next();
+   }
+};
+
+app.use(CORS);
 app.use(express.static(__dirname + '/public'));
 
 app.set('views', __dirname + '/tpl');
@@ -13,7 +47,7 @@ app.set('view engine', 'jade');
 app.engine('jade', require('jade').__express);
 
 app.get('/', function(req, res) {
-   res.render('basic-ui');
+   res.render('basic-ui', { server: local_addr() });
 });
 
 // app.listen(port);
