@@ -72,14 +72,16 @@ function is_empty(map) {
 }
 
 function broadcast(emitter, data, excludes, includes) {
-   for (var uuid in clients) {
-      if (excludes !== undefined && excludes.length > 0 && excludes.indexOf(uuid) !== -1)
+   for (var socket_id in clients) {
+      var u = clients[socket_id].uuid;
+
+      if (excludes !== undefined && excludes.length > 0 && excludes.indexOf(u) !== -1)
          continue;
 
-      if (includes !== undefined && includes.indexOf(uuid) === -1)
+      if (includes !== undefined && includes.indexOf(u) === -1)
          continue;
 
-      clients[uuid].socket.emit(emitter, data);
+      clients[socket_id].socket.emit(emitter, data);
    }
 }
 
