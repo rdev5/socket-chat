@@ -273,7 +273,7 @@ io.sockets.on('connection', function (socket) {
          socket.emit('ident', { success: true, uuid: client_uuid, name: auth[data.username].name, admin: auth[data.username].admin });
 
          // Broadcast user online to all but self
-         broadcast('message', { message: auth[data.username].name + ' is now online.' }, [ client_uuid ]);
+         broadcast('message', { message: auth[data.username].name + ' (' + clients[socket.id].ip + ') is now online.' }, [ client_uuid ]);
       } else {
          socket.emit('message', { message: 'Authentication failed. Please try again.' });
       }
