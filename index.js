@@ -15,7 +15,11 @@ app.get('/', function(req, res) {
    res.render('basic-ui');
 });
 
-function getKeys(obj) {
+// app.listen(port);
+var io = require('socket.io').listen(app.listen(port));
+console.log('Listening on port ' + port);
+
+function get_keys(obj) {
    var keys = [];
    for (var k in obj) {
       keys.push(k);
@@ -23,16 +27,23 @@ function getKeys(obj) {
    return keys;
 }
 
-// app.listen(port);
-var io = require('socket.io').listen(app.listen(port));
-console.log('Listening on port ' + port);
+function is_empty(map) {
+   for(var key in map) {
+      if (map.hasOwnProperty(key)) {
+         return false;
+      }
+   }
+   return true;
+}
 
 function broadcast(emitter, data, excludes, includes) {
+   console.log('INCLUDES: ');
+   console.log(includes);
    for (var uuid in clients) {
       if (excludes !== undefined && excludes.length > 0 && excludes.indexOf(uuid) !== -1)
          continue;
 
-      if (includes !== undefined && includes.length > 0 && includes.indexOf(uuid) === -1)
+      if (includes !== undefined && includes.indexOf(uuid) === -1)
          continue;
 
       clients[uuid].socket.emit(emitter, data);
@@ -48,8 +59,53 @@ function logoff(socket, data) {
 
    // Remove from clients
    delete clients[data.uuid];
+
+   // Update client list on logoff
+   io.sockets.in('auth').emit('online', get_users_online());
 }
 
+function shuffle_string(value) {
+   var a = value.split(""),
+      n = a.length;
+
+   for(var i = n - 1; i > 0; i--) {
+      var j = Math.floor(Math.random() * (i + 1));
+      var tmp = a[i];
+      a[i] = a[j];
+      a[j] = tmp;
+   }
+
+   return a.join("");
+}
+
+function random_string(len, possible) {
+   var text = "";
+
+   if (!possible) {
+      possible = "$#*ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+   }
+
+   for( var i=0; i < len; i++ )
+   text += possible.charAt(Math.floor(Math.random() * possible.length));
+
+   return text;
+}
+
+function generate_key() {
+   var key = uuid.v4();
+   key = key.replace(/\-/g, random_string(1));
+   // key = shuffle_string(key);
+
+   return key;
+}
+
+function generate_salt() {
+   var salt = uuid.v4();
+   salt = salt.replace(/\-/g, random_string(1));
+   // salt = shuffle_string(salt);
+
+   return salt;
+}
 
 // Crypto configuration
 const IV_SIZE = 16;
@@ -102,17 +158,36 @@ function client_encrypt(value, key, salt, callback) {
    });
 }
 
+function get_users() {
+   var users = {
+      matt: { name: 'Matt', password: 'matt123' },
+      bob: { name: 'Bob', password: 'bob456' },
+      john: { name: 'John', password: 'john789' }
+   };
+
+   return users;
+}
+
+function get_users_online() {
+   var users = get_users();
+   var users_online = {};
+   for (var k in clients) {
+      var username = clients[k].username;
+      users_online[k] = {
+         name: users[username].name
+      };
+   }
+
+   return users_online;
+}
+
 // Maintain list of authenticated clients
 var clients = {};
 
 io.sockets.on('connection', function (socket) {
 
    // Registered users (TODO: Pull from Couchbase)
-   var auth = {
-      matt: { name: 'Matt', password: 'matt123' },
-      bob: { name: 'Bob', password: 'bob456' },
-      john: { name: 'John', password: 'john789' }
-   }
+   var auth = get_users();
 
    // Emit welcome message to newly connected socket
    socket.emit('connected');
@@ -134,12 +209,15 @@ io.sockets.on('connection', function (socket) {
             username: data.username,
             ip: socket.handshake.address.address,
             port: socket.handshake.address.port,
-            socket: socket,
-            crypto: { key: uuid.v4(), salt: uuid.v4(), iv_size: IV_SIZE }
+            socket: socket
+            // crypto: { key: generate_key(), salt: generate_salt(), iv_size: IV_SIZE }
          };
 
          // Join room
          socket.join('auth');
+
+         // Update client list on logon
+         io.sockets.in('auth').emit('online', get_users_online());
 
          // Send UUID
          socket.emit('message', { message: 'Authentication successful. Welcome back, ' + auth[data.username].name + '!' });
@@ -155,6 +233,10 @@ io.sockets.on('connection', function (socket) {
    // De-authenticate
    socket.on('deauth', function (data) {
       if (clients[data.uuid] === undefined)
+         return false;
+
+      // TODO: Refactor user list or use other client restricted identifier
+      if (socket.handshake.address.address !== clients[data.uuid].ip)
          return false;
 
       // Broadcast user offline to all but self
@@ -188,25 +270,30 @@ io.sockets.on('connection', function (socket) {
          message: data.message
       }
 
-      // Broadcast on all io.sockets
-      // io.sockets.emit('message', send);
-
-      // Broadcast on all authenticated io.sockets
-      io.sockets.in('auth').emit('message', send);
-
       // Send encrypted
-      var client_crypto = clients[data.uuid].crypto;
-      client_encrypt(send.message, client_crypto.key, client_crypto.salt, function(err, ciphertext) {
+      var client_select = JSON.parse(data.client_select);
+      if (!is_empty(client_select)) {
+         // var client_crypto = clients[data.uuid].crypto;
 
-         // Sanitize
+         var recipients = get_keys(client_select);
          var client_encoded = send;
 
-         client_encoded.key = client_crypto.key;
-         client_encoded.salt = client_crypto.salt;
-         client_encoded.message = ciphertext;
+         client_encoded.key = generate_key();
+         client_encoded.salt = generate_salt();
 
-         socket.emit('encoded', client_encoded);
-      });
+         client_encrypt(send.message, client_encoded.key, client_encoded.salt, function(err, ciphertext) {
+            client_encoded.message = ciphertext;
+
+            socket.emit('message', { name: '(Sent to ' + recipients.length + ' recipients)', message: data.message } );
+            broadcast('encoded', client_encoded, [], recipients);
+         });
+      } else {
+         // Broadcast on all io.sockets
+         // io.sockets.emit('message', send);
+
+         // Broadcast on all authenticated io.sockets
+         io.sockets.in('auth').emit('message', send);
+      }
    });
    
 });

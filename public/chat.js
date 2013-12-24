@@ -19,14 +19,23 @@ window.onload = function() {
          $('#uuid').val(data.uuid);
          $('#auth-form').hide();
          $('#chat-controls').show();
-         
+
          $('#field').focus();
       }
    });
 
-   socket.on('connected', function() {
+   socket.on('connected', function () {
       $('#auth-form').show();
       $('#chat-controls').hide();
+   });
+
+   socket.on('online', function (data) {
+      var html = '';
+      for (var client_uuid in data) {
+         html += '<input type="checkbox" name="client_select" value="' + client_uuid + '" /> ' + data[client_uuid].name + '<br />';
+      }
+
+      $('#online').html(html);
    });
 
    socket.on('message', function (data) {
@@ -58,7 +67,7 @@ window.onload = function() {
       }
 
       var decoded = {
-         name: '<em style="font-weight: normal;">Encoded</em>',
+         name: data.name,
          message: '<a onclick="javascript:return show_crypto(this)" href="#crypto" rel="' + i + '">View<span style="display: none;">' + JSON.stringify(data) + '</span></a>'
       }
 
@@ -74,12 +83,28 @@ window.onload = function() {
       $('#content').scrollTop($('#content')[0].scrollHeight);
    });
 
+   function checked_values(field_name) {
+      var values = {};
+
+      $('input[name=' + field_name + ']:checked').each(function() {
+         values[$(this).val()] = true;
+      });
+
+      return values;
+   }
+
    sendButton.onclick = function() {
       if (name.value === '') {
          alert('Please enter your name!');
       } else {
          var text = field.value;
-         socket.emit('send', { message: text, name: name.value, uuid: uuid.value });
+         var send = {
+            message: text,
+            name: name.value,
+            uuid: uuid.value,
+            client_select: JSON.stringify(checked_values('client_select'))
+         }
+         socket.emit('send', send);
 
          field.value = '';
          field.focus();
@@ -92,6 +117,8 @@ window.onload = function() {
 
    $('#logoff').click(function() {
       socket.emit('deauth', { uuid: uuid.value });
+      socket.disconnect();
+      location.reload(true);
    });
 }
 

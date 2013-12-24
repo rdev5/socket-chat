@@ -1,7 +1,7 @@
 !!!
 html
     head
-        title= "Real time web chat"
+        title= "socket.io"
         link(href='/style.css', rel='stylesheet')
         script(src='/chat.js')
         script(src='/socket.io/socket.io.js')
@@ -11,7 +11,7 @@ html
         script(type='text/javascript').
          $(document).ready(function() {
             $('#username').focus();
-            
+
             $('#field').keyup(function(e) {
                if (e.keyCode == 13) {
                   $('#send').trigger('click');
@@ -32,7 +32,13 @@ html
          });
     body
         span#name
-        #content(style='width: 500px; height: 300px; margin: 0 0 10px 0; border: solid 1px #999; overflow-y: scroll;')
+        ul
+            li To send an encrypted message to a specific user, check their name. A unique key and salt will be generated for each message.
+            li If you wish to send yourself a copy of an encrypted message, be sure to check your own name before sending.
+        #container(style='width: 715px;')
+            #content(style='float: left; width: 500px; height: 300px; margin: 0 0 10px 0; border: solid 1px #999; overflow-y: scroll;')
+            #online(style='float: right; width: 200px; height: 300px; margin: 0 0 10px 10px; border: solid 1px #999; overflow-y: scroll;')
+            #clear(style='clear: both;')
         #auth-form
             input#username(placeholder='Username')
             input#password(type='password', placeholder='Password')
