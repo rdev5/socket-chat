@@ -127,7 +127,6 @@ window.onload = function() {
    });
 
    $('#logoff').click(function() {
-      socket.emit('deauth', { uuid: uuid.value });
       socket.disconnect();
       location.reload(true);
    });

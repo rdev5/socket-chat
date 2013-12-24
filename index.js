@@ -49,7 +49,7 @@ function broadcast(emitter, data, excludes, includes) {
    }
 }
 
-function logoff(socket, data) {
+function logoff(socket) {
    // Leave room
    socket.leave('auth');
 
@@ -57,7 +57,7 @@ function logoff(socket, data) {
    socket.emit('connected');
 
    // Remove from clients
-   delete clients[data.uuid];
+   delete clients[socket.id];
 
    // Update client list on logoff
    io.sockets.in('auth').emit('online', get_users_online());
@@ -182,6 +182,7 @@ function get_users_online() {
 
 // Maintain list of authenticated clients
 var clients = {};
+var client_sockets = {};
 
 io.sockets.on('connection', function (socket) {
 
@@ -204,7 +205,8 @@ io.sockets.on('connection', function (socket) {
       if (auth_user !== undefined && auth_user.password === data.password) {
 
          // Save authenticated client details
-         clients[client_uuid] = {
+         clients[socket.id] = {
+            uuid: client_uuid,
             username: data.username,
             ip: socket.handshake.address.address,
             port: socket.handshake.address.port,
@@ -229,20 +231,6 @@ io.sockets.on('connection', function (socket) {
       }
    });
 
-   // De-authenticate
-   socket.on('deauth', function (data) {
-      if (clients[data.uuid] === undefined)
-         return false;
-
-      // TODO: Refactor user list or use other client restricted identifier
-      if (socket.handshake.address.address !== clients[data.uuid].ip)
-         return false;
-
-      // Broadcast user offline to all but self
-      broadcast('message', { message: auth[clients[data.uuid].username].name + ' logged off.' }, [ data.uuid ]);
-      logoff(socket, data);
-   });
-
    // Handle requests to decode messages
    socket.on('decode', function (data) {
       Crypto.Config.secret_key = data.key;
@@ -254,27 +242,28 @@ io.sockets.on('connection', function (socket) {
       });
    });
 
+   // Handle disconnect
+   socket.on('disconnect', function () {
+      if (clients[socket.id] === undefined)
+         return false;
+
+      // Broadcast user offline to all but self
+      broadcast('message', { message: auth[clients[socket.id].username].name + ' logged off.' }, [ clients[socket.id].uuid ]);
+      logoff(socket);
+   });
+
    // List for socket to emit data to 'send'
    socket.on('send', function (data) {
 
       // Require authenticated UUID
-      if (clients[data.uuid] === undefined) {
+      if (clients[socket.id] === undefined) {
          socket.emit('message', { message: 'Invalid ident. Please re-authenticate.' });
          // logoff(socket, data);
          return false;
       }
 
-      // Require same IP
-      if (clients[data.uuid].ip !== socket.handshake.address.address) {
-         socket.emit('message', { message: 'Invalid origin. Please re-authenticate.' });
-         // logoff(socket, data);
-         return false;
-      }
-
       // Send plaintext
-
-      // Sanitize
-      var username = clients[data.uuid].username;
+      var username = clients[socket.id].username;
       var send = {
          name: auth[username].name,
          message: data.message
