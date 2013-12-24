@@ -191,9 +191,14 @@ function client_encrypt(value, key, salt, callback) {
    });
 }
 
+// Maintain list of authenticated clients
+var clients = {};
+var client_sockets = {};
+
+// TODO: Pull from Couchbase
 function get_users() {
    var users = {
-      matt: { name: 'Matt', password: 'matt123' },
+      matt: { name: 'Matt', password: 'matt123', admin: true },
       bob: { name: 'Bob', password: 'bob456' },
       john: { name: 'John', password: 'john789' }
    };
@@ -214,17 +219,12 @@ function get_users_online() {
    return users_online;
 }
 
-// Maintain list of authenticated clients
-var clients = {};
-var client_sockets = {};
-
 io.sockets.on('connection', function (socket) {
 
    // Generate UUID for authenticated client
    while (client_uuid === undefined || clients[client_uuid] !== undefined)
       var client_uuid = uuid.v4();
 
-   // Registered users (TODO: Pull from Couchbase)
    var auth = get_users();
 
    // Emit welcome message to newly connected socket
@@ -301,6 +301,23 @@ io.sockets.on('connection', function (socket) {
       var send = {
          name: auth[username].name,
          message: data.message
+      }
+
+      // Admin commands
+      if (auth[username].admin === true) {
+         var cmd = (data.message).match(/^\/([^\s]+)/i);
+         var args = (data.message).split(' ');
+         args.shift();
+         switch(cmd[1]) {
+            case 'reload':
+               io.sockets.emit('reload');
+
+            default:
+               console.log('COMMAND: ' + cmd[1]);
+               console.log('ARGS: ' + args);
+               break;
+         }
+         return;
       }
 
       // Send encrypted

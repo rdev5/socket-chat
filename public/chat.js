@@ -12,6 +12,11 @@ window.onload = function() {
 
    $('#name').html('<h1>socket.io</h1>');
 
+   socket.on('reload', function (data) {
+      socket.disconnect();
+      location.reload(true);
+   });
+
    socket.on('ident', function (data) {
       if (!data.success)
          return false;
