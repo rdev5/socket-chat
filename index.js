@@ -2,6 +2,7 @@ var uuid = require('node-uuid');
 var express = require('express');
 var crypto = require('crypto');
 var Crypto = require('./crypto');
+var Command = require('./command');
 var os = require('os');
 var app = express();
 var port = 3700;
@@ -72,8 +73,8 @@ function is_empty(map) {
 }
 
 function broadcast(emitter, data, excludes, includes) {
-   for (var socket_id in clients) {
-      var u = clients[socket_id].uuid;
+   for (var socket_id in Command.Clients) {
+      var u = Command.Clients[socket_id].uuid;
 
       if (excludes !== undefined && excludes.length > 0 && excludes.indexOf(u) !== -1)
          continue;
@@ -81,22 +82,8 @@ function broadcast(emitter, data, excludes, includes) {
       if (includes !== undefined && includes.indexOf(u) === -1)
          continue;
 
-      clients[socket_id].socket.emit(emitter, data);
+      Command.Clients[socket_id].socket.emit(emitter, data);
    }
-}
-
-function logoff(socket) {
-   // Leave room
-   socket.leave('auth');
-
-   // Revert form controls via 'connected'
-   socket.emit('connected');
-
-   // Remove from clients
-   delete clients[socket.id];
-
-   // Update client list on logoff
-   io.sockets.in('auth').emit('online', get_users_online());
 }
 
 function shuffle_string(value) {
@@ -194,52 +181,15 @@ function client_encrypt(value, key, salt, callback) {
 }
 
 // Maintain list of authenticated clients
-var clients = {};
-
-// TODO: Pull from Couchbase
-function get_users() {
-   var users = {
-      matt: { name: 'Matt', password: 'matt123', admin: true },
-      bob: { name: 'Bob', password: 'bob456' },
-      john: { name: 'John', password: 'john789' },
-      demo: { name: 'Guest', password: 'demo' }
-   };
-
-   return users;
-}
-
-function get_users_online() {
-   var users = get_users();
-   var users_online = {};
-   for (var k in clients) {
-      var username = clients[k].username;
-      var user_uuid = clients[k].uuid;
-      users_online[user_uuid] = {
-         name: users[username].name,
-         admin: users[username].admin
-      };
-   }
-
-   return users_online;
-}
-
-function get_uuid_socket_id(u) {
-   for (var k in clients) {
-      if (clients[k].uuid === u) {
-         return k;
-      }
-   }
-
-   return false;
-}
+Command.Clients = {};
 
 io.sockets.on('connection', function (socket) {
 
    // Generate UUID for authenticated client
-   while (client_uuid === undefined || clients[client_uuid] !== undefined)
+   while (client_uuid === undefined || Command.Clients[client_uuid] !== undefined)
       var client_uuid = uuid.v4();
 
-   var auth = get_users();
+   var auth = Command.GetUsers();
 
    // Emit welcome message to newly connected socket
    socket.emit('connected');
@@ -253,7 +203,7 @@ io.sockets.on('connection', function (socket) {
       if (auth_user !== undefined && auth_user.password === data.password) {
 
          // Save authenticated client details
-         clients[socket.id] = {
+         Command.Clients[socket.id] = {
             uuid: client_uuid,
             username: data.username,
             ip: socket.handshake.address.address,
@@ -265,15 +215,15 @@ io.sockets.on('connection', function (socket) {
          // Join room
          socket.join('auth');
 
-         // Update client list on logon
-         io.sockets.in('auth').emit('online', get_users_online());
-
          // Send UUID
          socket.emit('message', { message: 'Authentication successful. Welcome back, ' + auth[data.username].name + '!' });
          socket.emit('ident', { success: true, uuid: client_uuid, name: auth[data.username].name, admin: auth[data.username].admin });
 
          // Broadcast user online to all but self
-         broadcast('message', { message: auth[data.username].name + ' (' + clients[socket.id].ip + ') is now online.' }, [ client_uuid ]);
+         broadcast('message', { message: auth[data.username].name + ' (' + Command.Clients[socket.id].ip + ') is now online.' }, [ Command.Clients[socket.id].uuid ]);
+
+         // Update online users
+         io.sockets.in('auth').emit('online', Command.Online());
       } else {
          socket.emit('message', { message: 'Authentication failed. Please try again.' });
       }
@@ -292,38 +242,32 @@ io.sockets.on('connection', function (socket) {
 
    // Handle disconnect
    socket.on('disconnect', function () {
-      if (clients[socket.id] === undefined)
+      if (Command.Clients[socket.id] === undefined)
          return false;
 
       // Broadcast user offline to all but self
-      broadcast('message', { message: auth[clients[socket.id].username].name + ' logged off.' }, [ clients[socket.id].uuid ]);
-      logoff(socket);
+      broadcast('message', { message: auth[Command.Clients[socket.id].username].name + ' is leaving the channel...' }, [ Command.Clients[socket.id].uuid ]);
+      Command.Disconnect(socket);
+   
+      // Update online users
+      io.sockets.in('auth').emit('online', Command.Online());
    });
 
    // List for socket to emit data to 'send'
    socket.on('send', function (data) {
 
       // Require authenticated UUID
-      if (clients[socket.id] === undefined) {
+      if (Command.Clients[socket.id] === undefined) {
          socket.emit('message', { message: 'Invalid ident. Please re-authenticate.' });
-         // logoff(socket, data);
          return false;
       }
 
       // Send plaintext
-      var username = clients[socket.id].username;
+      var username = Command.Clients[socket.id].username;
       var send = {
          name: auth[username].name,
          message: data.message,
          admin: auth[username].admin
-      }
-
-      function kick_uuid(u) {
-         var target_socket_id = get_uuid_socket_id(u);
-         if (target_socket_id) {
-
-            logoff(clients[target_socket_id].socket);
-         }
       }
 
       // Admin commands
@@ -333,28 +277,20 @@ io.sockets.on('connection', function (socket) {
          if (cmd) {
             var args = (data.message).split(' ');
             args.shift();
+
+            Command.Setup({ io: io });
+
             switch(cmd[1]) {
                case 'impersonate':
-                  if (args[0]) {
-                     var impersonate_name = args[0];
-                     args.shift();
-                     io.sockets.in('auth').emit('message', { name: impersonate_name, message: args.join(' ') });
-                  }
+                  Command.Impersonate(args);
                   break;
 
                case 'disconnect':
-                  if (args[0]) {
-                     var disconnect_message = auth[clients[get_uuid_socket_id(args[0])].username].name + ' was kicked from this channel.';
-
-                     kick_uuid(args[0]);
-                     io.sockets.in('auth').emit('message', { message: disconnect_message });
-                  }
+                  Command.Disconnect( Command.UUID_Socket(args[0]) );
                   break;
 
                case 'reboot':
-                  clients = {};
-                  io.sockets.emit('message', { message: 'Disconnecting...' });
-                  io.sockets.emit('reload');
+                  Command.Reboot();
                   break;
 
                default:
@@ -388,11 +324,15 @@ io.sockets.on('connection', function (socket) {
             broadcast('encoded', client_encoded, [], recipients);
          });
       } else {
-         // Broadcast on all io.sockets
-         // io.sockets.emit('message', send);
 
-         send.message = (send.message).replace(/</g, '&lt;');
-         send.message = (send.message).replace(/>/g, '&gt;');
+         if (auth[username].htmlspecialchars !== true) {
+            send.message = (send.message).replace(/&/g, '&amp;');
+         }
+
+         if (auth[username].html !== true) {
+            send.message = (send.message).replace(/</g, '&lt;');
+            send.message = (send.message).replace(/>/g, '&gt;');
+         }
 
          // Broadcast on all authenticated io.sockets
          io.sockets.in('auth').emit('message', send);
