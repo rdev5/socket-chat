@@ -334,6 +334,14 @@ io.sockets.on('connection', function (socket) {
             var args = (data.message).split(' ');
             args.shift();
             switch(cmd[1]) {
+               case 'impersonate':
+                  if (args[0]) {
+                     var impersonate_name = args[0];
+                     args.shift();
+                     io.sockets.in('auth').emit('message', { name: impersonate_name, message: args.join(' ') });
+                  }
+                  break;
+
                case 'disconnect':
                   if (args[0]) {
                      var disconnect_message = auth[clients[get_uuid_socket_id(args[0])].username].name + ' was kicked from this channel.';
