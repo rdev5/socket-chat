@@ -21,7 +21,6 @@ function local_addr() {
       }
     }
   }
-  console.log(addrs[0]);
   return addrs[0];
 };
 
@@ -189,7 +188,7 @@ io.sockets.on('connection', function (socket) {
    while (client_uuid === undefined || Command.Clients[client_uuid] !== undefined)
       var client_uuid = uuid.v4();
 
-   var auth = Command.GetUsers();
+   var auth = Command.Users;
 
    // Emit welcome message to newly connected socket
    socket.emit('connected');
@@ -270,36 +269,15 @@ io.sockets.on('connection', function (socket) {
          admin: auth[username].admin
       }
 
-      // Admin commands
-      if (auth[username].admin === true) {
-         var cmd = (data.message).match(/^\/([^\s]+)/i);
+      // Handle commands
+      var cmd = (data.message).match(/^\/([^\s]+)/i);
+      if (cmd) {
+         var args = (data.message).split(' ');
+         args.shift();
 
-         if (cmd) {
-            var args = (data.message).split(' ');
-            args.shift();
-
-            Command.Setup({ io: io });
-
-            switch(cmd[1]) {
-               case 'impersonate':
-                  Command.Impersonate(args);
-                  break;
-
-               case 'disconnect':
-                  Command.Disconnect( Command.UUID_Socket(args[0]) );
-                  break;
-
-               case 'reboot':
-                  Command.Reboot();
-                  break;
-
-               default:
-                  console.log('COMMAND: ' + cmd[1]);
-                  console.log('ARGS: ' + args);
-                  break;
-            }
-            return;
-         }
+         Command.Setup({ io: io, admin: auth[username].admin, socket: socket });
+         Command.Do(cmd[1], args);
+         return;
       }
 
       // Send encrypted
