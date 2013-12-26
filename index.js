@@ -85,100 +85,6 @@ function broadcast(emitter, data, excludes, includes) {
    }
 }
 
-function shuffle_string(value) {
-   var a = value.split(""),
-      n = a.length;
-
-   for(var i = n - 1; i > 0; i--) {
-      var j = Math.floor(Math.random() * (i + 1));
-      var tmp = a[i];
-      a[i] = a[j];
-      a[j] = tmp;
-   }
-
-   return a.join("");
-}
-
-function random_string(len, possible) {
-   var text = "";
-
-   if (!possible) {
-      possible = "$#*ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
-   }
-
-   for( var i=0; i < len; i++ )
-   text += possible.charAt(Math.floor(Math.random() * possible.length));
-
-   return text;
-}
-
-function generate_key() {
-   var key = uuid.v4();
-   key = key.replace(/\-/g, random_string(1));
-   // key = shuffle_string(key);
-
-   return key;
-}
-
-function generate_salt() {
-   var salt = uuid.v4();
-   salt = salt.replace(/\-/g, random_string(1));
-   // salt = shuffle_string(salt);
-
-   return salt;
-}
-
-// Crypto configuration
-const IV_SIZE = 16;
-const INTEGER_LEN = 4;
-const ITERATIONS = 65536;
-const KEY_LEN = 16;
-const DEFAULT_ENCRYPTION_ALGORITHM = 'aes-128-cbc';
-const DEFAULT_ENCODING = 'hex';
-
-function client_encrypt(value, key, salt, callback) {
-
-   // Step 1: Generate cryptographically strong pseudo-random IV
-   crypto.randomBytes(IV_SIZE, function(err, iv) {
-      if(err) {
-         return callback(err);
-      }
-      
-      // Step 2: Password based key encryption
-      crypto.pbkdf2(key, salt, ITERATIONS, KEY_LEN, function(err, k) {
-
-         var ciphertext;
-         cipher = crypto.createCipheriv(DEFAULT_ENCRYPTION_ALGORITHM, k, iv);
-         ciphertext = cipher.update(value);
-         ciphertext += cipher.final('binary');
-
-         // Setup binary buffers
-         var n_buffer = new Buffer(INTEGER_LEN);
-         n_buffer.writeUInt32BE(IV_SIZE, 0); // BIG_ENDIAN
-
-         // console.log('n_buffer:' + n_buffer.toString());
-
-         var i_buffer = new Buffer(iv, 'binary');
-         var c_buffer = new Buffer(ciphertext, 'binary');
-
-         // Assemble resultant buffer
-         var result = new Buffer(n_buffer.length + i_buffer.length + c_buffer.length);
-         n_buffer.copy(result, 0, 0, n_buffer.length);
-         i_buffer.copy(result, n_buffer.length, 0, i_buffer.length);
-         c_buffer.copy(result, n_buffer.length + i_buffer.length, 0, c_buffer.length);
-
-         callback(null, result.toString(DEFAULT_ENCODING));
-
-         // console.log('Integer Buffer: ' + JSON.stringify(n_buffer));
-         // console.log('IV Size Buffer: ' + i_buffer.toString('base64'));
-         // console.log('Ciphertext Buffer: ' + c_buffer.toString('base64'));
-         // console.log('Result Buffer: ' + JSON.stringify(result));
-
-         // console.log(result.toString('base64'));
-      });
-   });
-}
-
 // Maintain list of authenticated clients
 Command.Clients = {};
 
@@ -208,7 +114,7 @@ io.sockets.on('connection', function (socket) {
             ip: socket.handshake.address.address,
             port: socket.handshake.address.port,
             socket: socket
-            // crypto: { key: generate_key(), salt: generate_salt(), iv_size: IV_SIZE }
+            // crypto: { key: Crypto.GenerateKey(), salt: Crypto.GenerateSalt(), iv_size: IV_SIZE }
          };
 
          // Join room
@@ -288,8 +194,8 @@ io.sockets.on('connection', function (socket) {
          var recipients = get_keys(client_select);
          var client_encoded = send;
 
-         client_encoded.key = generate_key();
-         client_encoded.salt = generate_salt();
+         client_encoded.key = Crypto.GenerateKey();
+         client_encoded.salt = Crypto.GenerateSalt();
 
          Crypto.Config.secret_key = client_encoded.key;
          Crypto.Config.salt = client_encoded.salt;

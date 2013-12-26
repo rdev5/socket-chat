@@ -37,6 +37,49 @@ Crypto.UUID = function() {
    return uuid.v4();
 }
 
+Crypto.ShuffleString = function(value) {
+   var a = value.split(""),
+      n = a.length;
+
+   for(var i = n - 1; i > 0; i--) {
+      var j = Math.floor(Math.random() * (i + 1));
+      var tmp = a[i];
+      a[i] = a[j];
+      a[j] = tmp;
+   }
+
+   return a.join("");
+}
+
+Crypto.RandomString = function(len, possible) {
+   var text = "";
+
+   if (!possible) {
+      possible = "$#*ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+   }
+
+   for( var i=0; i < len; i++ )
+   text += possible.charAt(Math.floor(Math.random() * possible.length));
+
+   return text;
+}
+
+Crypto.GenerateKey = function() {
+   var key = uuid.v4();
+   key = key.replace(/\-/g, Crypto.RandomString(1));
+   // key = Crypto.ShuffleString(key);
+
+   return key;
+}
+
+Crypto.GenerateSalt = function() {
+   var salt = uuid.v4();
+   salt = salt.replace(/\-/g, Crypto.RandomString(1));
+   // salt = Crypto.ShuffleString(salt);
+
+   return salt;
+}
+
 Crypto.GenerateIV = function(iv_size, callback) {
    crypto.randomBytes(iv_size, function(err, iv) {
       if (err) {
