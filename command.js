@@ -46,6 +46,48 @@ Command.Do = function(command, args) {
    console.log(module.exports.Clients[self.socket.id].username + ' issued command [' + command + '] with args [' + args + ']');
 
    switch(command) {
+      case 'encrypt':
+         if (args.length !== 3 || !args[0] || !args[1] || !args[2]) {
+            self.socket.emit('message', { message: 'Usage: /encrypt &lt;key&gt; &lt;salt&gt; &lt;plaintext&gt;'});
+            break;
+         }
+
+         var Crypto = require('./crypto');
+         Crypto.Config.secret_key = args[0];
+         Crypto.Config.salt = args[1];
+         Crypto.Reload();
+
+         try {
+            Crypto.Encrypt(args[2], function(err, ciphertext) {
+               self.socket.emit('message', { message: ciphertext });
+            });
+         } catch(err) {
+            self.socket.emit('message', { message: 'Encrypt error.', error: err });
+         }
+
+         break;
+
+      case 'decrypt':
+         if (args.length !== 3 || !args[0] || !args[1] || !args[2]) {
+            self.socket.emit('message', { message: 'Usage: /decrypt &lt;key&gt; &lt;salt&gt; &lt;plaintext&gt;'});
+            break;
+         }
+
+         var Crypto = require('./crypto');
+         Crypto.Config.secret_key = args[0];
+         Crypto.Config.salt = args[1];
+         Crypto.Reload();
+
+         try {
+            Crypto.Decrypt(args[2], function (err, plaintext) {
+               self.socket.emit('message', { message: plaintext });
+            });
+         } catch(err) {
+            self.socket.emit('message', { message: 'Decrypt error.', error: err });
+         }
+
+         break;
+
       case 'nick':
          if (!self.admin) {
             self.socket.emit('message', { message: 'Access denied.' });
