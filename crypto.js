@@ -1,7 +1,7 @@
 /*
  * Crypto Module
  * @author Matt Borja (rdev5)
- * @version 0.1.1
+ * @version 0.1.2
  *
  * Featured methods:
  * - Override default configuration by modifying Crypto.Config object and calling Crypto.Reload()

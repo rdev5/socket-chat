@@ -1,3 +1,5 @@
+var Crypto = require('./crypto');
+
 var self = {};
 var clients = {};
 var users = {
@@ -47,24 +49,17 @@ Command.Do = function(command, args) {
 
    switch(command) {
       case 'encrypt':
+         if (args.length === 1) {
+            Command.Encrypt( Crypto.GenerateKey(), Crypto.GenerateSalt(), args[0], true );
+            break;
+         }
+
          if (args.length !== 3 || !args[0] || !args[1] || !args[2]) {
             self.socket.emit('message', { message: 'Usage: /encrypt &lt;key&gt; &lt;salt&gt; &lt;plaintext&gt;'});
             break;
          }
 
-         var Crypto = require('./crypto');
-         Crypto.Config.secret_key = args[0];
-         Crypto.Config.salt = args[1];
-         Crypto.Reload();
-
-         try {
-            Crypto.Encrypt(args[2], function(err, ciphertext) {
-               self.socket.emit('message', { message: ciphertext });
-            });
-         } catch(err) {
-            self.socket.emit('message', { message: 'Encrypt error.', error: err });
-         }
-
+         Command.Encrypt( args[0], args[1], args[2], false );
          break;
 
       case 'decrypt':
@@ -73,19 +68,7 @@ Command.Do = function(command, args) {
             break;
          }
 
-         var Crypto = require('./crypto');
-         Crypto.Config.secret_key = args[0];
-         Crypto.Config.salt = args[1];
-         Crypto.Reload();
-
-         try {
-            Crypto.Decrypt(args[2], function (err, plaintext) {
-               self.socket.emit('message', { message: plaintext });
-            });
-         } catch(err) {
-            self.socket.emit('message', { message: 'Decrypt error.', error: err });
-         }
-
+         Command.Decrypt( args[0], args[1], args[2] );
          break;
 
       case 'nick':
@@ -137,6 +120,38 @@ Command.Do = function(command, args) {
 
       default:
          break;
+   }
+}
+
+Command.Encrypt = function(key, salt, plaintext, display_decrypt) {
+   Crypto.Config.secret_key = key;
+   Crypto.Config.salt = salt;
+   Crypto.Reload();
+
+   try {
+      Crypto.Encrypt(plaintext, function(err, ciphertext) {
+         if (display_decrypt === true) {
+            self.socket.emit('message', { message: 'Key: ' + key + ', Salt: ' + salt + ' | ' + ciphertext });
+         } else {
+            self.socket.emit('message', { message: ciphertext });
+         }
+      });
+   } catch(err) {
+      self.socket.emit('message', { message: 'Encrypt error.', error: err });
+   }
+}
+
+Command.Decrypt = function(key, salt, ciphertext) {
+   Crypto.Config.secret_key = key;
+   Crypto.Config.salt = salt;
+   Crypto.Reload();
+
+   try {
+      Crypto.Decrypt(ciphertext, function (err, plaintext) {
+         self.socket.emit('message', { message: plaintext });
+      });
+   } catch(err) {
+      self.socket.emit('message', { message: 'Decrypt error.', error: err });
    }
 }
 
