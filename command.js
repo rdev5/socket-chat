@@ -10,15 +10,31 @@ var users = {
    demo: { name: 'Guest', password: 'demo' }
 };
 
+function get_keys(obj) {
+   var keys = [];
+   for (var k in obj) {
+      keys.push(k);
+   }
+   return keys;
+}
+
+function is_empty(map) {
+   for(var key in map) {
+      if (map.hasOwnProperty(key)) {
+         return false;
+      }
+   }
+   return true;
+}
+
 function Command() {
 
 }
 
-Command.Setup = function(options) {
-   self.io = options.io;
-   self.admin = options.admin;
-   self.socket = options.socket;
-   self.options = options;
+Command.Setup = function(socket, io) {
+   self.socket = socket;
+   self.io = io;
+   self.admin = module.exports.Users[ module.exports.Clients[self.socket.id].username ].admin
 }
 
 Command.UUID_Socket = function(u) {
@@ -49,7 +65,7 @@ Command.Do = function(command, args) {
    switch(command) {
       case 'encrypt':
          if (args.length === 1) {
-            Command.Encrypt( Crypto.GenerateKey(), Crypto.GenerateSalt(), args[0], true );
+            Command.EncryptMessage( Crypto.GenerateKey(), Crypto.GenerateSalt(), args[0], true );
             break;
          }
 
@@ -58,7 +74,7 @@ Command.Do = function(command, args) {
             break;
          }
 
-         Command.Encrypt( args[0], args[1], args[2], false );
+         Command.EncryptMessage( args[0], args[1], args[2], false );
          break;
 
       case 'decrypt':
@@ -67,7 +83,7 @@ Command.Do = function(command, args) {
             break;
          }
 
-         Command.Decrypt( args[0], args[1], args[2] );
+         Command.DecryptMessage( args[0], args[1], args[2] );
          break;
 
       case 'impersonate':
@@ -145,7 +161,31 @@ Command.Broadcast = function(emitter, data, excludes, includes) {
    }
 }
 
-Command.Encrypt = function(key, salt, plaintext, display_decrypt) {
+// Sends key and salt with ciphertext (subject to MITM)
+Command.EncryptBroadcast = function(send, client_select) {
+   var recipients = get_keys(client_select);
+
+   Crypto.Config.secret_key = Crypto.GenerateKey();
+   Crypto.Config.salt = Crypto.GenerateSalt();
+   Crypto.Reload();
+
+   Crypto.Encrypt(send.message, function(err, ciphertext) {
+
+      var client_encoded = send;
+      client_encoded.key = Crypto.Config.secret_key;
+      client_encoded.salt = Crypto.Config.salt;
+      client_encoded.message = ciphertext;
+
+      // Include self
+      if (recipients.indexOf(module.exports.Clients[self.socket.id].uuid) === -1) {
+         recipients.push(module.exports.Clients[self.socket.id].uuid);
+      }
+
+      Command.Broadcast('encoded', client_encoded, [], recipients);
+   });
+}
+
+Command.EncryptMessage = function(key, salt, plaintext, display_decrypt) {
    Crypto.Config.secret_key = key;
    Crypto.Config.salt = salt;
    Crypto.Reload();
@@ -163,14 +203,24 @@ Command.Encrypt = function(key, salt, plaintext, display_decrypt) {
    }
 }
 
-Command.Decrypt = function(key, salt, ciphertext) {
+Command.DecryptMessage = function(key, salt, ciphertext, decode_request) {
    Crypto.Config.secret_key = key;
    Crypto.Config.salt = salt;
    Crypto.Reload();
 
    try {
       Crypto.Decrypt(ciphertext, function (err, plaintext) {
-         self.socket.emit('message', { message: plaintext });
+         var response = { message: plaintext }
+
+         // Handle request to decode incoming message
+         if (decode_request) {
+            response.name = decode_request.name;
+            response.decoded = true;
+         }
+
+         console.log('DecryptMessage to ' + module.exports.Clients[self.socket.id].username + ': ' + JSON.stringify(response));
+
+         self.socket.emit('message', response);
       });
    } catch(err) {
       self.socket.emit('message', { message: 'Decrypt error.', error: err });

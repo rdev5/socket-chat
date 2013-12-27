@@ -16,6 +16,14 @@ window.onload = function() {
       $('#logoff').trigger('click');
    });
 
+   socket.on('connect', function (data) {
+      $('#auth-form').show();
+      $('#chat-controls').hide();
+      $('#uuid').val('');
+
+      $('#username').focus();
+   });
+
    socket.on('ident', function (data) {
       if (!data.success)
          return false;

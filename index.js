@@ -74,6 +74,7 @@ function is_empty(map) {
 // Maintain list of authenticated clients
 Command.Clients = {};
 
+// Note: Command.Setup() must be called prior to processing any commands for the connected socket.
 io.sockets.on('connection', function (socket) {
 
    var client_uuid = Command.GenerateUUID();
@@ -103,6 +104,7 @@ io.sockets.on('connection', function (socket) {
          socket.emit('ident', { success: true, uuid: client_uuid, name: Command.Users[data.username].name, admin: Command.Users[data.username].admin });
 
          // Broadcast user online to all but self
+         Command.Setup(socket, io);
          Command.Broadcast('message', { message: Command.Users[data.username].name + ' is now online.' }, [ Command.Clients[socket.id].uuid ]);
 
          // Update online users
@@ -114,13 +116,8 @@ io.sockets.on('connection', function (socket) {
 
    // Handle requests to decode messages
    socket.on('decode', function (data) {
-      Crypto.Config.secret_key = data.key;
-      Crypto.Config.salt = data.salt;
-      Crypto.Reload();
-
-      Crypto.Decrypt(data.message, function (err, plaintext) {
-         socket.emit('message', { name: data.name, message: plaintext, decoded: true });
-      });
+      Command.Setup(socket, io);
+      Command.DecryptMessage(data.key, data.salt, data.message, data);
    });
 
    // Handle disconnect
@@ -129,6 +126,7 @@ io.sockets.on('connection', function (socket) {
          return false;
 
       // Broadcast user offline to all but self
+      Command.Setup(socket, io);
       Command.Broadcast('message', { message: Command.Users[Command.Clients[socket.id].username].name + ' is leaving the channel...' }, [ Command.Clients[socket.id].uuid ]);
       Command.Disconnect(socket);
    
@@ -153,13 +151,13 @@ io.sockets.on('connection', function (socket) {
          admin: Command.Users[username].admin
       }
 
+      Command.Setup(socket, io);
+
       // Handle commands
       var cmd = (data.message).match(/^\/([^\s]+)/i);
       if (cmd) {
          var args = (data.message).split(' ');
          args.shift();
-
-         Command.Setup({ io: io, admin: Command.Users[username].admin, socket: socket });
          Command.Do(cmd[1], args);
          return;
       }
@@ -167,22 +165,7 @@ io.sockets.on('connection', function (socket) {
       // Send encrypted
       var client_select = JSON.parse(data.client_select);
       if (!is_empty(client_select)) {
-         var recipients = get_keys(client_select);
-         var client_encoded = send;
-
-         client_encoded.key = Crypto.GenerateKey();
-         client_encoded.salt = Crypto.GenerateSalt();
-
-         Crypto.Config.secret_key = client_encoded.key;
-         Crypto.Config.salt = client_encoded.salt;
-         Crypto.Reload();
-
-         Crypto.Encrypt(send.message, function(err, ciphertext) {
-            client_encoded.message = ciphertext;
-
-            recipients.push(client_uuid);
-            Command.Broadcast('encoded', client_encoded, [], recipients);
-         });
+         Command.EncryptBroadcast(send, client_select);
       } else {
          if (Command.Users[username].htmlspecialchars !== true) {
             send.message = (send.message).replace(/&/g, '&amp;');
