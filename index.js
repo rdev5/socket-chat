@@ -71,20 +71,6 @@ function is_empty(map) {
    return true;
 }
 
-function broadcast(emitter, data, excludes, includes) {
-   for (var socket_id in Command.Clients) {
-      var u = Command.Clients[socket_id].uuid;
-
-      if (excludes !== undefined && excludes.length > 0 && excludes.indexOf(u) !== -1)
-         continue;
-
-      if (includes !== undefined && includes.indexOf(u) === -1)
-         continue;
-
-      Command.Clients[socket_id].socket.emit(emitter, data);
-   }
-}
-
 // Maintain list of authenticated clients
 Command.Clients = {};
 
@@ -125,7 +111,7 @@ io.sockets.on('connection', function (socket) {
          socket.emit('ident', { success: true, uuid: client_uuid, name: auth[data.username].name, admin: auth[data.username].admin });
 
          // Broadcast user online to all but self
-         broadcast('message', { message: auth[data.username].name + ' (' + Command.Clients[socket.id].ip + ') is now online.' }, [ Command.Clients[socket.id].uuid ]);
+         Command.Broadcast('message', { message: auth[data.username].name + ' is now online.' }, [ Command.Clients[socket.id].uuid ]);
 
          // Update online users
          io.sockets.in('auth').emit('online', Command.Online());
@@ -151,7 +137,7 @@ io.sockets.on('connection', function (socket) {
          return false;
 
       // Broadcast user offline to all but self
-      broadcast('message', { message: auth[Command.Clients[socket.id].username].name + ' is leaving the channel...' }, [ Command.Clients[socket.id].uuid ]);
+      Command.Broadcast('message', { message: auth[Command.Clients[socket.id].username].name + ' is leaving the channel...' }, [ Command.Clients[socket.id].uuid ]);
       Command.Disconnect(socket);
    
       // Update online users
@@ -205,7 +191,7 @@ io.sockets.on('connection', function (socket) {
             client_encoded.message = ciphertext;
 
             recipients.push(client_uuid);
-            broadcast('encoded', client_encoded, [], recipients);
+            Command.Broadcast('encoded', client_encoded, [], recipients);
          });
       } else {
 

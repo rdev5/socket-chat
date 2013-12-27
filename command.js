@@ -123,6 +123,20 @@ Command.Do = function(command, args) {
    }
 }
 
+Command.Broadcast = function(emitter, data, excludes, includes) {
+   for (var socket_id in module.exports.Clients) {
+      var u = module.exports.Clients[socket_id].uuid;
+
+      if (excludes !== undefined && excludes.length > 0 && excludes.indexOf(u) !== -1)
+         continue;
+
+      if (includes !== undefined && includes.indexOf(u) === -1)
+         continue;
+
+      module.exports.Clients[socket_id].socket.emit(emitter, data);
+   }
+}
+
 Command.Encrypt = function(key, salt, plaintext, display_decrypt) {
    Crypto.Config.secret_key = key;
    Crypto.Config.salt = salt;
