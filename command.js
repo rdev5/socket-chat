@@ -70,6 +70,15 @@ Command.Do = function(command, args) {
          Command.Decrypt( args[0], args[1], args[2] );
          break;
 
+      case 'impersonate':
+         if (!self.admin) {
+            self.socket.emit('message', { message: 'Access denied.' });
+            break;
+         }
+
+         Command.Impersonate(args);
+         break;
+
       case 'nick':
          if (!self.admin) {
             self.socket.emit('message', { message: 'Access denied.' });
@@ -82,15 +91,6 @@ Command.Do = function(command, args) {
          }
 
          Command.Rename( module.exports.Clients[self.socket.id].username, args[0] );
-         break;
-
-      case 'impersonate':
-         if (!self.admin) {
-            self.socket.emit('message', { message: 'Access denied.' });
-            break;
-         }
-
-         Command.Impersonate(args);
          break;
 
       case 'disconnect':
