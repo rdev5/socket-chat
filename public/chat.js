@@ -21,17 +21,12 @@ window.onload = function() {
          return false;
 
       if (data.success) {
-         $('#uuid').val(data.uuid);
          $('#auth-form').hide();
          $('#chat-controls').show();
+         $('#uuid').val(data.uuid);
 
          $('#field').focus();
       }
-   });
-
-   socket.on('connected', function () {
-      $('#auth-form').show();
-      $('#chat-controls').hide();
    });
 
    socket.on('online', function (data) {
@@ -50,21 +45,27 @@ window.onload = function() {
 
    socket.on('message', function (data) {
       if (data.message) {
+         var html = '<ul id="messages">';
+
          messages.push(data);
-         var html = ''
          for (var i = 0; i < messages.length; i++) {
 
-            html += '<strong>';
+            var display_name = messages[i].name ? messages[i].name : 'Server';
+
+            // display_name admin marker
             if (messages[i].admin) {
-               html += '@';
+               display_name = '@' + display_name;
             }
-            html += (messages[i].name ? messages[i].name : 'Server');
+
+            // display_name encoded marker
             if (messages[i].decoded) {
-               html += '*';
+               display_name = '(' + display_name + ')';
             }
-            html += ':</strong> ';
-            html += messages[i].message + '<br />';
+
+            html += '<li><strong>' + display_name + '</strong> ' + messages[i].message + '</li>';
          }
+         html += '</ul>';
+
          content.innerHTML = html;
 
          $('#content').scrollTop($('#content')[0].scrollHeight);
@@ -73,38 +74,8 @@ window.onload = function() {
       }
    });
 
-   // Decode on-the-fly
    socket.on('encoded', function (data) {
       socket.emit('decode', data);
-   });
-
-   // Don't decoded
-   socket.on('encoded_old', function (data) {
-      if (!data.key || !data.salt) {
-         console.log('Error (no crypto): ' + data);
-         return;
-      }
-
-      if (!data.message) {
-         console.log('Error (no message): ' + JSON.stringify(data));
-         return;
-      }
-
-      var decoded = {
-         name: data.name,
-         message: '<a onclick="javascript:return show_crypto(this)" href="#crypto" rel="' + i + '">View<span style="display: none;">' + JSON.stringify(data) + '</span></a>'
-      }
-
-      messages.push(decoded);
-      var html = ''
-      for (var i = 0; i < messages.length; i++) {
-
-         html += '<strong>' + (messages[i].name ? messages[i].name : 'Server') + ':</strong> ';
-         html += messages[i].message + '<br />';
-      }
-      content.innerHTML = html;
-
-      $('#content').scrollTop($('#content')[0].scrollHeight);
    });
 
    function checked_values(field_name) {

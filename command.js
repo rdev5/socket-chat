@@ -1,4 +1,5 @@
 var Crypto = require('./crypto');
+var uuid = require('node-uuid');
 
 var self = {};
 var clients = {};
@@ -45,8 +46,6 @@ Command.UUID_SocketId = function(u) {
 }
 
 Command.Do = function(command, args) {
-   console.log(module.exports.Clients[self.socket.id].username + ' issued command [' + command + '] with args [' + args + ']');
-
    switch(command) {
       case 'encrypt':
          if (args.length === 1) {
@@ -121,6 +120,15 @@ Command.Do = function(command, args) {
       default:
          break;
    }
+}
+
+Command.GenerateUUID = function() {
+   var client_uuid;
+   while (!client_uuid || module.exports.Clients[client_uuid] !== undefined) {
+      client_uuid = uuid.v4();
+   }
+
+   return client_uuid;
 }
 
 Command.Broadcast = function(emitter, data, excludes, includes) {

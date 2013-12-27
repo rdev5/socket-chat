@@ -31,26 +31,28 @@ html
             });
          });
     body
-        span#server(style='display: none') #{server}
-        span#name
-        ul
-            li To login, use <strong>demo</strong> as the username and password.
-            li To send an encrypted message to a specific user, check their name. A unique key and salt will be generated for each message.
-            li If you wish to send yourself a copy of an encrypted message, be sure to check your own name before sending.
         #container(style='width: 715px;')
-            #content(style='float: left; width: 500px; height: 300px; margin: 0 0 10px 0; border: solid 1px #999; overflow-y: scroll;')
-            #online(style='float: right; width: 200px; height: 300px; margin: 0 0 10px 10px; border: solid 1px #999; overflow-y: scroll;')
-            #clear(style='clear: both;')
-        #auth-form
-            input#username(placeholder='Username')
-            input#password(type='password', placeholder='Password')
-            input#authenticate(type='button', value='Authenticate')
-            span#auth-status
-            br
-        #crypto
-            *Incoming message was encrypted
-        #chat-controls
-            input#uuid(type='hidden')
-            input#field(style='width:350px;')
-            input#send(type='button', value='Send')
-            input#logoff(type='button', value='Logoff')
+          span#server(style='display: none') #{server}
+          span#name
+          #content(style='float: left; width: 500px; height: 300px; margin: 0 0 10px 0; border: solid 1px #999; overflow-y: scroll;')
+          #online(style='float: right; width: 200px; height: 300px; margin: 0 0 10px 10px; border: solid 1px #999; overflow-y: scroll;')
+          #clear(style='clear: both;')
+          #auth-form
+              input#username(placeholder='Username')
+              input#password(type='password', placeholder='Password')
+              input#authenticate(type='button', value='Authenticate')
+              span#auth-status
+              br
+          #chat-controls(style='display: none;')
+              input#uuid(type='hidden')
+              input#field(style='width:350px;')
+              input#send(type='button', value='Send')
+              input#logoff(type='button', value='Logoff')
+          h2 Help
+          ul
+              li To login, use <strong>demo</strong> as the username and password.
+              li To send an encrypted message to a specific user, check their name. A unique key and salt will be generated for each message.
+              li If you wish to send yourself a copy of an encrypted message, be sure to check your own name before sending.
+              li Display names prefixed with @ denote an administrative user.
+              li Display names enclosed in parenthesis denote an encrypted message sent to you (and possibly other recipients).
+          
