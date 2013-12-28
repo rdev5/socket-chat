@@ -30,7 +30,8 @@ function Command(socket, io) {
    if (this instanceof Command) {
       this.socket = socket;
       this.io = io;
-      // self.admin = module.exports.Users[ module.exports.Clients[self.socket.id].username ].admin
+      this.Clients = {};
+      // self.admin = module.exports.Users[ self.Clients[self.socket.id].username ].admin
    } else {
       return new Command(socket, io);
    }
@@ -39,7 +40,7 @@ function Command(socket, io) {
 Command.prototype.UUID_Socket = function(u) {
    var self = this;
 
-   var clients = module.exports.Clients;
+   var clients = self.Clients;
 
    for (var k in clients) {
       if (clients[k].uuid === u) {
@@ -53,7 +54,7 @@ Command.prototype.UUID_Socket = function(u) {
 Command.prototype.UUID_SocketId = function(u) {
    var self = this;
 
-   var clients = module.exports.Clients;
+   var clients = self.Clients;
 
    for (var k in clients) {
       if (clients[k].uuid === u) {
@@ -111,12 +112,12 @@ Command.prototype.Do = function(command, args) {
             break;
          }
 
-         self.Rename( module.exports.Clients[self.socket.id].username, args[0] );
+         self.Rename( self.Clients[self.socket.id].username, args[0] );
          break;
 
       case 'disconnect':
          // Allow self-disconnect
-         if (!args[0] || args[0] === module.exports.Clients[self.socket.id].uuid) {
+         if (!args[0] || args[0] === self.Clients[self.socket.id].uuid) {
             self.Disconnect( self.socket );
             break;
          }
@@ -147,7 +148,7 @@ Command.prototype.GenerateUUID = function() {
    var self = this;
 
    var client_uuid;
-   while (!client_uuid || module.exports.Clients[client_uuid] !== undefined) {
+   while (!client_uuid || self.Clients[client_uuid] !== undefined) {
       client_uuid = uuid.v4();
    }
 
@@ -157,8 +158,8 @@ Command.prototype.GenerateUUID = function() {
 Command.prototype.Broadcast = function(emitter, data, excludes, includes) {
    var self = this;
 
-   for (var socket_id in module.exports.Clients) {
-      var u = module.exports.Clients[socket_id].uuid;
+   for (var socket_id in self.Clients) {
+      var u = self.Clients[socket_id].uuid;
 
       if (excludes !== undefined && excludes.length > 0 && excludes.indexOf(u) !== -1)
          continue;
@@ -166,7 +167,7 @@ Command.prototype.Broadcast = function(emitter, data, excludes, includes) {
       if (includes !== undefined && includes.indexOf(u) === -1)
          continue;
 
-      module.exports.Clients[socket_id].socket.emit(emitter, data);
+      self.Clients[socket_id].socket.emit(emitter, data);
    }
 }
 
@@ -175,8 +176,8 @@ Command.prototype.EncryptBroadcast = function(send, client_select) {
    var self = this;
 
    // CC own socket
-   if (!client_select[ module.exports.Clients[self.socket.id].uuid ]) {
-      client_select[ module.exports.Clients[self.socket.id].uuid ] = true;
+   if (!client_select[ self.Clients[self.socket.id].uuid ]) {
+      client_select[ self.Clients[self.socket.id].uuid ] = true;
    }
 
    var recipients = get_keys(client_select);
@@ -233,7 +234,7 @@ Command.prototype.DecryptMessage = function(key, salt, ciphertext, decode_reques
             response.decoded = true;
          }
 
-         module.exports.Clients[self.socket.id].socket.emit('message', response);
+         self.Clients[self.socket.id].socket.emit('message', response);
       });
    } catch(err) {
       socket.emit('message', { message: 'Decrypt error.', error: err });
@@ -244,11 +245,11 @@ Command.prototype.SanitizeMessage = function(message) {
    var self = this;
 
 
-   if (module.exports.Users[ module.exports.Clients[self.socket.id].username ].htmlspecialchars !== true) {
+   if (module.exports.Users[ self.Clients[self.socket.id].username ].htmlspecialchars !== true) {
       message = (message).replace(/&/g, '&amp;');
    }
 
-   if (module.exports.Users[ module.exports.Clients[self.socket.id].username ].html !== true) {
+   if (module.exports.Users[ self.Clients[self.socket.id].username ].html !== true) {
       message = (message).replace(/</g, '&lt;');
       message = (message).replace(/>/g, '&gt;');
    }
@@ -262,7 +263,7 @@ Command.prototype.Reboot = function() {
    self.io.sockets.emit('message', { message: 'Disconnecting...' });
    self.io.sockets.emit('reload');
 
-   module.exports.Clients = {};
+   self.Clients = {};
 }
 
 Command.prototype.Rename = function(username, name) {
@@ -275,14 +276,14 @@ Command.prototype.Rename = function(username, name) {
 Command.prototype.Disconnect = function(socket) {
    var self = this;
 
-   var clients = module.exports.Clients;
+   var clients = self.Clients;
 
    if (socket) {
       socket.leave('auth'); // Leave authenticated room
       socket.emit('reload'); // Refresh client UI
       delete clients[socket.id]; // De-authenticate
 
-      module.exports.Clients = clients;
+      self.Clients = clients;
       self.RefreshOnline();
    }
 }
@@ -299,9 +300,10 @@ Command.prototype.Online = function() {
 
    var users_online = {};
 
-   for (var k in module.exports.Clients) {
-      var username = module.exports.Clients[k].username;
-      var user_uuid = module.exports.Clients[k].uuid;
+   for (var k in self.Clients) {
+      console.log(k + ' found in Clients');
+      var username = self.Clients[k].username;
+      var user_uuid = self.Clients[k].uuid;
       users_online[user_uuid] = {
          name: module.exports.Users[username].name,
          admin: module.exports.Users[username].admin,
@@ -320,5 +322,4 @@ Command.prototype.RefreshOnline = function() {
 }
 
 module.exports = Command;
-module.exports.Clients = clients;
 module.exports.Users = users;
