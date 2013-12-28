@@ -10,8 +10,6 @@ window.onload = function() {
    var content = document.getElementById('content');
    var name = document.getElementById('name');
 
-   $('#name').html('<h1>socket.io</h1>');
-
    socket.on('reload', function (data) {
       $('#logoff').trigger('click');
    });

@@ -1,7 +1,7 @@
 !!!
 html
     head
-        title= "socket.io"
+        title= "socket-chat"
         link(href='/style.css', rel='stylesheet')
         script(src='/chat.js')
         script(src='/socket.io/socket.io.js')
@@ -33,7 +33,7 @@ html
     body
         #container(style='width: 715px;')
           span#server(style='display: none') #{server}
-          span#name
+          h1 socket-chat
           #content(style='float: left; width: 500px; height: 300px; margin: 0 0 10px 0; border: solid 1px #999; overflow-y: scroll;')
           #online(style='float: right; width: 200px; height: 300px; margin: 0 0 10px 10px; border: solid 1px #999; overflow-y: scroll;')
           #clear(style='clear: both;')
