@@ -136,21 +136,13 @@ io.sockets.on('connection', function (socket) {
 
       SocketCommand[socket.id].DecryptMessage(data.key, data.salt, data.message, data);
    });
-   
+
 
    // List for socket to emit data to 'send'
    socket.on('send', function (data) {
       if (!Clients[socket.id]) {
          socket.emit('message', { message: 'Invalid ident. Please re-authenticate.' });
          return false;
-      }
-
-      // Send plaintext
-      var username = Clients[socket.id].username;
-      var send = {
-         name: Users[username].name,
-         message: data.message,
-         admin: Users[username].admin
       }
 
       // Handle commands
@@ -160,15 +152,23 @@ io.sockets.on('connection', function (socket) {
          args.shift();
          SocketCommand[socket.id].Do(cmd[1], args);
          return;
-      }
-
-      // Send encrypted
-      var client_select = JSON.parse(data.client_select);
-      if (!is_empty(client_select)) {
-         SocketCommand[socket.id].EncryptBroadcast(send, client_select);
       } else {
-         send.message = SocketCommand[socket.id].SanitizeMessage(send.message);
-         io.sockets.in('auth').emit('message', send);
+
+         // Send plaintext
+         var send = {
+            name: Users[ Clients[socket.id].username ].name,
+            message: data.message,
+            admin: Users[ Clients[socket.id].username ].admin
+         }
+
+         // Send encrypted
+         var client_select = JSON.parse(data.client_select);
+         if (!is_empty(client_select)) {
+            SocketCommand[socket.id].EncryptBroadcast(send, client_select);
+         } else {
+            send.message = SocketCommand[socket.id].SanitizeMessage(send.message);
+            io.sockets.in('auth').emit('message', send);
+         }
       }
    });
 });
