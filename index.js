@@ -77,8 +77,6 @@ Command.Clients = {};
 // Note: Command.Setup() must be called prior to processing any commands for the connected socket.
 io.sockets.on('connection', function (socket) {
 
-   var client_uuid = Command.GenerateUUID();
-
    // Emit welcome message to newly connected socket
    socket.emit('message', { message: 'Connection successful. Please authenticate.' });
 
@@ -86,6 +84,8 @@ io.sockets.on('connection', function (socket) {
    socket.on('auth', function (data) {
 
       if (Command.Users[data.username] !== undefined && Command.Users[data.username].password === data.password) {
+
+         var client_uuid = Command.GenerateUUID();
 
          // Save authenticated client details
          Command.Clients[socket.id] = {
@@ -165,18 +165,15 @@ io.sockets.on('connection', function (socket) {
       // Send encrypted
       var client_select = JSON.parse(data.client_select);
       if (!is_empty(client_select)) {
+
+         // Include self
+         if (!client_select[ Command.Clients[socket.id].uuid ]) {
+            client_select[ Command.Clients[socket.id].uuid ] = true;
+         }
+
          Command.EncryptBroadcast(send, client_select);
       } else {
-         if (Command.Users[username].htmlspecialchars !== true) {
-            send.message = (send.message).replace(/&/g, '&amp;');
-         }
-
-         if (Command.Users[username].html !== true) {
-            send.message = (send.message).replace(/</g, '&lt;');
-            send.message = (send.message).replace(/>/g, '&gt;');
-         }
-
-         // Broadcast on all authenticated io.sockets
+         send.message = Command.SanitizeMessage(send.message);
          io.sockets.in('auth').emit('message', send);
       }
    });

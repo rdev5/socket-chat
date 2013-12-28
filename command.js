@@ -176,11 +176,6 @@ Command.EncryptBroadcast = function(send, client_select) {
       client_encoded.salt = Crypto.Config.salt;
       client_encoded.message = ciphertext;
 
-      // Include self
-      if (recipients.indexOf(module.exports.Clients[self.socket.id].uuid) === -1) {
-         recipients.push(module.exports.Clients[self.socket.id].uuid);
-      }
-
       Command.Broadcast('encoded', client_encoded, [], recipients);
    });
 }
@@ -210,7 +205,7 @@ Command.DecryptMessage = function(key, salt, ciphertext, decode_request) {
 
    try {
       Crypto.Decrypt(ciphertext, function (err, plaintext) {
-         var response = { message: plaintext }
+         var response = { message: Command.SanitizeMessage(plaintext) };
 
          // Handle request to decode incoming message
          if (decode_request) {
@@ -225,6 +220,20 @@ Command.DecryptMessage = function(key, salt, ciphertext, decode_request) {
    } catch(err) {
       self.socket.emit('message', { message: 'Decrypt error.', error: err });
    }
+}
+
+Command.SanitizeMessage = function(message) {
+
+   if (module.exports.Users[ module.exports.Clients[self.socket.id].username ].htmlspecialchars !== true) {
+      message = (message).replace(/&/g, '&amp;');
+   }
+
+   if (module.exports.Users[ module.exports.Clients[self.socket.id].username ].html !== true) {
+      message = (message).replace(/</g, '&lt;');
+      message = (message).replace(/>/g, '&gt;');
+   }
+
+   return message;
 }
 
 Command.Reboot = function() {
