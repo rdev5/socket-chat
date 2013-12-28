@@ -116,8 +116,11 @@ io.sockets.on('connection', function (socket) {
 
    // Handle requests to decode messages
    socket.on('decode', function (data) {
-      Command.Setup(socket, io);
-      Command.DecryptMessage(data.key, data.salt, data.message, data);
+      // TODO: Refactor. Instantiate Command class per socket.
+      // Temporary Fix: Pass socket to emit to.
+      
+      // Command.Setup(socket, io);
+      Command.DecryptMessage(data.key, data.salt, data.message, data, socket);
    });
 
    // Handle disconnect
@@ -168,7 +171,7 @@ io.sockets.on('connection', function (socket) {
 
          // Include self
          if (!client_select[ Command.Clients[socket.id].uuid ]) {
-            client_select[ Command.Clients[socket.id].uuid ] = true;
+            // client_select[ Command.Clients[socket.id].uuid ] = true;
          }
 
          Command.EncryptBroadcast(send, client_select);

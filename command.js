@@ -28,7 +28,11 @@ function is_empty(map) {
 }
 
 function Command() {
+   if (this instanceof Command) {
 
+   } else {
+      return new Command();
+   }
 }
 
 Command.Setup = function(socket, io) {
@@ -176,6 +180,8 @@ Command.EncryptBroadcast = function(send, client_select) {
       client_encoded.salt = Crypto.Config.salt;
       client_encoded.message = ciphertext;
 
+      console.log('EncryptBroadcast to ' + JSON.stringify(recipients));
+
       Command.Broadcast('encoded', client_encoded, [], recipients);
    });
 }
@@ -198,7 +204,9 @@ Command.EncryptMessage = function(key, salt, plaintext, display_decrypt) {
    }
 }
 
-Command.DecryptMessage = function(key, salt, ciphertext, decode_request) {
+// TODO: Refactor. Instantiate Command class per socket.
+// Temporary Fix: Pass socket to emit to.
+Command.DecryptMessage = function(key, salt, ciphertext, decode_request, socket) {
    Crypto.Config.secret_key = key;
    Crypto.Config.salt = salt;
    Crypto.Reload();
@@ -213,12 +221,12 @@ Command.DecryptMessage = function(key, salt, ciphertext, decode_request) {
             response.decoded = true;
          }
 
-         console.log('DecryptMessage to ' + module.exports.Clients[self.socket.id].username + ': ' + JSON.stringify(response));
+         console.log('DecryptMessage to ' + module.exports.Clients[socket.id].username + ': ' + JSON.stringify(response));
 
-         self.socket.emit('message', response);
+         socket.emit('message', response);
       });
    } catch(err) {
-      self.socket.emit('message', { message: 'Decrypt error.', error: err });
+      socket.emit('message', { message: 'Decrypt error.', error: err });
    }
 }
 
