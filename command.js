@@ -174,6 +174,11 @@ Command.prototype.Broadcast = function(emitter, data, excludes, includes) {
 Command.prototype.EncryptBroadcast = function(send, client_select) {
    var self = this;
 
+   // CC own socket
+   if (!client_select[ module.exports.Clients[self.socket.id].uuid ]) {
+      client_select[ module.exports.Clients[self.socket.id].uuid ] = true;
+   }
+
    var recipients = get_keys(client_select);
 
    Crypto.Config.secret_key = Crypto.GenerateKey();

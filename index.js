@@ -165,12 +165,6 @@ io.sockets.on('connection', function (socket) {
       // Send encrypted
       var client_select = JSON.parse(data.client_select);
       if (!is_empty(client_select)) {
-
-         // Include self
-         if (!client_select[ Command.Clients[socket.id].uuid ]) {
-            client_select[ Command.Clients[socket.id].uuid ] = true;
-         }
-
          SocketCommand[socket.id].EncryptBroadcast(send, client_select);
       } else {
          send.message = SocketCommand[socket.id].SanitizeMessage(send.message);
