@@ -71,18 +71,21 @@ function is_empty(map) {
 }
 
 // Maintain list of authenticated clients
-var SocketCommand = {};
 var GlobalCommand = new Command();
 var Clients = {};
 var Users = GlobalCommand.GetUsers();
 
-// Note: SocketCommand[socket.id].Setup() must be called prior to processing any commands for the connected socket.
+// TODO: Refactor Clients into SocketCommand
+var SocketCommand = {};
+
+// Note: SocketCommand[socket.id].Command.Setup() must be called prior to processing any commands for the connected socket.
 io.sockets.on('connection', function (socket) {
 
    // Setup SocketCommand
-   SocketCommand[socket.id] = new Command(socket, io);
-   socket.emit('message', { message: 'Connection successful. Please authenticate.' });
+   SocketCommand[socket.id] = {};
+   SocketCommand[socket.id].Command = new Command(socket, io);
 
+   socket.emit('message', { message: 'Connection successful. Please authenticate.' });
 
    // Handle disconnect
    socket.on('disconnect', function () {
@@ -90,33 +93,35 @@ io.sockets.on('connection', function (socket) {
          return false;
 
       // Broadcast user offline to all but self
-      SocketCommand[socket.id].Broadcast('message', { message: Users[Clients[socket.id].username].name + ' is leaving the channel...' }, [ Clients[socket.id].uuid ]);
-      SocketCommand[socket.id].Disconnect(socket);
+      SocketCommand[socket.id].Command.Disconnect();
    
       // Update online users
-      io.sockets.in('auth').emit('online', SocketCommand[socket.id].Online());
+      io.sockets.in('auth').emit('online', SocketCommand[socket.id].Command.Online());
    });
 
-   // Authentication
-   socket.on('auth', function (data) {
 
+   // Save authenticated client details
+   socket.on('auth', function (data) {
+      var Users = GlobalCommand.GetUsers();
       if (Users[data.username] !== undefined && Users[data.username].password === Crypto.Hash(data.password)) {
 
-         var client_uuid = SocketCommand[socket.id].GenerateUUID();
-
-         // Save authenticated client details
          Clients[socket.id] = {
-            uuid: client_uuid,
+            uuid: SocketCommand[socket.id].Command.GenerateUUID(),
             username: data.username,
             ip: socket.handshake.address.address,
             port: socket.handshake.address.port,
             socket: socket
          };
 
+         // Update SocketCommand
+         SocketCommand[socket.id].Command.username = Clients[socket.id].username;
+         SocketCommand[socket.id].Command.uuid = Clients[socket.id].uuid;
+
          // Propagate Clients
          for (var socket_id in SocketCommand) SocketCommand[socket_id].Clients = Clients;
 
-         SocketCommand[socket.id].Join('auth');
+         // Join the party!
+         SocketCommand[socket.id].Command.Join('auth');
       } else {
          socket.emit('message', { message: 'Authentication failed. Please try again.' });
       }
@@ -130,7 +135,7 @@ io.sockets.on('connection', function (socket) {
          return false;
       }
 
-      SocketCommand[socket.id].DecryptMessage(data.key, data.salt, data.message, data);
+      SocketCommand[socket.id].Command.DecryptMessage(data.key, data.salt, data.message, data);
    });
 
 
@@ -146,12 +151,12 @@ io.sockets.on('connection', function (socket) {
       if (cmd) {
          var args = (data.message).split(' ');
          args.shift();
-         SocketCommand[socket.id].Do(cmd[1], args);
+         SocketCommand[socket.id].Command.Do(cmd[1], args);
 
          // Update and propagate Clients
-         Clients = SocketCommand[socket.id].Clients;
+         Clients = SocketCommand[socket.id].Command.Clients;
          for (var socket_id in SocketCommand) SocketCommand[socket_id].Clients = Clients;
-         
+
          return;
       } else {
 
@@ -165,9 +170,9 @@ io.sockets.on('connection', function (socket) {
          // Send encrypted
          var client_select = JSON.parse(data.client_select);
          if (!is_empty(client_select)) {
-            SocketCommand[socket.id].EncryptBroadcast(send, client_select);
+            SocketCommand[socket.id].Command.EncryptBroadcast(send, client_select);
          } else {
-            send.message = SocketCommand[socket.id].SanitizeMessage(send.message);
+            send.message = SocketCommand[socket.id].Command.SanitizeMessage(send.message);
             io.sockets.in('auth').emit('message', send);
          }
       }

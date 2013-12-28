@@ -22,6 +22,8 @@ function Command(socket, io) {
    if (this instanceof Command) {
       this.socket = socket;
       this.io = io;
+      this.username = null;
+      this.uuid = null;
       this.Clients = {};
       this.Users = this.GetUsers();
    } else {
@@ -45,9 +47,10 @@ Command.prototype.GetUsers = function() {
 Command.prototype.Admin = function() {
    var self = this;
 
-   return self.Users[ self.Clients[self.socket.id].username ].admin;
+   return self.Users[ self.username ].admin;
 }
 
+// TODO: Refactor use of self.Clients
 Command.prototype.UUID_Socket = function(u) {
    var self = this;
 
@@ -56,20 +59,6 @@ Command.prototype.UUID_Socket = function(u) {
    for (var k in clients) {
       if (clients[k].uuid === u) {
          return clients[k].socket;
-      }
-   }
-
-   return false;
-}
-
-Command.prototype.UUID_SocketId = function(u) {
-   var self = this;
-
-   var clients = self.Clients;
-
-   for (var k in clients) {
-      if (clients[k].uuid === u) {
-         return k;
       }
    }
 
@@ -123,12 +112,12 @@ Command.prototype.Do = function(command, args) {
             break;
          }
 
-         self.Rename( self.Clients[self.socket.id].username, args[0] );
+         self.Rename( self.username, args[0] );
          break;
 
       case 'disconnect':
          // Allow self-disconnect
-         if (!args[0] || args[0] === self.Clients[self.socket.id].uuid) {
+         if (!args[0] || args[0] === self.uuid) {
             self.Disconnect( self.socket );
             break;
          }
@@ -155,6 +144,7 @@ Command.prototype.Do = function(command, args) {
    }
 }
 
+// TODO: Refactor use of self.Clients
 Command.prototype.GenerateUUID = function() {
    var self = this;
 
@@ -174,23 +164,24 @@ Command.prototype.Join = function(room) {
 
    // Send UUID
    self.socket.emit('message', {
-      message: 'Authentication successful. Welcome back, ' + self.Users[ self.Clients[self.socket.id].username ].name + '!'
+      message: 'Authentication successful. Welcome back, ' + self.Users[ self.username ].name + '!'
    });
 
    self.socket.emit('ident', {
       success: true,
-      uuid: self.Clients[self.socket.id].uuid,
-      name: self.Users[ self.Clients[self.socket.id].username ].name,
-      admin: self.Users[ self.Clients[self.socket.id].username ].admin
+      uuid: self.uuid,
+      name: self.Users[ self.username ].name,
+      admin: self.Users[ self.username ].admin
    });
 
    // Broadcast user online to all but self
-   self.Broadcast('message', { message: self.Users[ self.Clients[self.socket.id].username ].name + ' is now online.' }, [ self.Clients[self.socket.id].uuid ]);
+   self.Broadcast('message', { message: self.Users[ self.username ].name + ' is now online.' }, [ self.uuid ]);
 
    // Update online users
    self.io.sockets.in(room).emit('online', self.Online());
 }
 
+// TODO: Refactor use of self.Clients
 Command.prototype.Broadcast = function(emitter, data, excludes, includes) {
    var self = this;
 
@@ -212,8 +203,8 @@ Command.prototype.EncryptBroadcast = function(send, client_select) {
    var self = this;
 
    // CC own socket
-   if (!client_select[ self.Clients[self.socket.id].uuid ]) {
-      client_select[ self.Clients[self.socket.id].uuid ] = true;
+   if (!client_select[ self.uuid ]) {
+      client_select[ self.uuid ] = true;
    }
 
    var recipients = get_keys(client_select);
@@ -270,7 +261,7 @@ Command.prototype.DecryptMessage = function(key, salt, ciphertext, decode_reques
             response.decoded = true;
          }
 
-         self.Clients[self.socket.id].socket.emit('message', response);
+         self.socket.emit('message', response);
       });
    } catch(err) {
       socket.emit('message', { message: 'Decrypt error.', error: err });
@@ -281,11 +272,11 @@ Command.prototype.SanitizeMessage = function(message) {
    var self = this;
 
 
-   if (self.Users[ self.Clients[self.socket.id].username ].htmlspecialchars !== true) {
+   if (self.Users[ self.username ].htmlspecialchars !== true) {
       message = (message).replace(/&/g, '&amp;');
    }
 
-   if (self.Users[ self.Clients[self.socket.id].username ].html !== true) {
+   if (self.Users[ self.username ].html !== true) {
       message = (message).replace(/</g, '&lt;');
       message = (message).replace(/>/g, '&gt;');
    }
@@ -293,6 +284,7 @@ Command.prototype.SanitizeMessage = function(message) {
    return message;
 }
 
+// TODO: Refactor use of self.Clients
 Command.prototype.Reboot = function() {
    var self = this;
 
@@ -309,19 +301,22 @@ Command.prototype.Rename = function(username, name) {
    self.RefreshOnline();
 }
 
+// TODO: Refactor use of self.Clients
 Command.prototype.Disconnect = function(socket) {
    var self = this;
 
    var clients = self.Clients;
 
-   if (socket) {
-      socket.leave('auth'); // Leave authenticated room
-      socket.emit('reload'); // Refresh client UI
-      delete clients[socket.id]; // De-authenticate
-
-      self.Clients = clients;
-      self.RefreshOnline();
+   if (!socket) {
+      socket = self.socket;
    }
+
+   socket.leave('auth'); // Leave authenticated room
+   socket.emit('reload'); // Refresh client UI
+   delete clients[socket.id]; // De-authenticate
+
+   self.Clients = clients;
+   self.RefreshOnline();
 }
 
 Command.prototype.Impersonate = function(args) {
@@ -331,6 +326,7 @@ Command.prototype.Impersonate = function(args) {
    self.io.sockets.in('auth').emit('message', { name: impersonate_name, message: args.join(' ') });
 }
 
+// TODO: Refactor use of self.Clients
 Command.prototype.Online = function() {
    var self = this;
 
