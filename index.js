@@ -87,7 +87,7 @@ io.sockets.on('connection', function (socket) {
    // Authentication
    socket.on('auth', function (data) {
 
-      if (Users[data.username] !== undefined && Users[data.username].password === data.password) {
+      if (Users[data.username] !== undefined && Users[data.username].password === Crypto.Hash(data.password)) {
 
          var client_uuid = SocketCommand[socket.id].GenerateUUID();
 

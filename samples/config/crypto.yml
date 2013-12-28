@@ -2,6 +2,7 @@ default:
    format: 'hex'
 
    algorithm: 'aes-128-cbc'
+   hash_algorithm: 'sha512'
    iv_size: 16
    secret_key: 'YourSecretKeyInDevelopment'
    salt: 'YourSaltInDevelopment'
@@ -17,6 +18,7 @@ test:
    format: 'hex'
 
    algorithm: 'aes-128-cbc'
+   hash_algorithm: 'sha512'
    iv_size: 16
    secret_key: 'YourSecretKeyInTest'
    salt: 'YourSaltInTest'
@@ -32,6 +34,7 @@ production:
    format: 'hex'
 
    algorithm: 'aes-128-cbc'
+   hash_algorithm: 'sha512'
    iv_size: 16
    secret_key: 'YourSecretKeyInProduction'
    salt: 'YourSaltInProduction'

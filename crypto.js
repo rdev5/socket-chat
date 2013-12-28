@@ -121,6 +121,21 @@ Crypto.Verify = function(data, signature) {
             .verify( fs.readFileSync(config.public_key_file), signature, config.format );
 }
 
+// TODO: Replace with bcrypt
+Crypto.Hash = function(data, iterations) {
+   if (!iterations) {
+      iterations = config.iterations;
+   }
+
+   for (var i = 1; i <= iterations; i++) {
+      var hasher = crypto.createHash(config.hash_algorithm);
+      hasher.update(data);
+      data = hasher.digest(config.format);
+   }
+
+   return data;
+}
+
 Crypto.Cipher = function(plaintext, secret_key, salt, iv, callback) {
    crypto.pbkdf2(secret_key, salt, config.iterations, config.keylen, function(err, key) {
       if (err) {
