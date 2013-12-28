@@ -78,10 +78,24 @@ var Clients = {};
 // Note: SocketCommand[socket.id].Setup() must be called prior to processing any commands for the connected socket.
 io.sockets.on('connection', function (socket) {
 
+   // Setup SocketCommand
    SocketCommand[socket.id] = new Command(socket, io);
-
-   // Emit welcome message to newly connected socket
    socket.emit('message', { message: 'Connection successful. Please authenticate.' });
+
+
+   // Handle disconnect
+   socket.on('disconnect', function () {
+      if (!Clients[socket.id])
+         return false;
+
+      // Broadcast user offline to all but self
+      SocketCommand[socket.id].Broadcast('message', { message: Users[Clients[socket.id].username].name + ' is leaving the channel...' }, [ Clients[socket.id].uuid ]);
+      SocketCommand[socket.id].Disconnect(socket);
+   
+      // Update online users
+      io.sockets.in('auth').emit('online', SocketCommand[socket.id].Online());
+   });
+
 
    // Authentication
    socket.on('auth', function (data) {
@@ -112,28 +126,20 @@ io.sockets.on('connection', function (socket) {
       }
    });
 
+
    // Handle requests to decode messages
    socket.on('decode', function (data) {
+      if (!Clients[socket.id]) {
+         socket.emit('message', { message: 'Invalid ident. Please re-authenticate.' });
+         return false;
+      }
+
       SocketCommand[socket.id].DecryptMessage(data.key, data.salt, data.message, data);
    });
-
-   // Handle disconnect
-   socket.on('disconnect', function () {
-      if (!Clients[socket.id])
-         return false;
-
-      // Broadcast user offline to all but self
-      SocketCommand[socket.id].Broadcast('message', { message: Users[Clients[socket.id].username].name + ' is leaving the channel...' }, [ Clients[socket.id].uuid ]);
-      SocketCommand[socket.id].Disconnect(socket);
    
-      // Update online users
-      io.sockets.in('auth').emit('online', SocketCommand[socket.id].Online());
-   });
 
    // List for socket to emit data to 'send'
    socket.on('send', function (data) {
-
-      // Require authenticated UUID
       if (!Clients[socket.id]) {
          socket.emit('message', { message: 'Invalid ident. Please re-authenticate.' });
          return false;
