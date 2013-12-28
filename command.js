@@ -1,7 +1,6 @@
 var Crypto = require('./crypto');
 var uuid = require('node-uuid');
 
-var self = {};
 var clients = {};
 var users = {
    matt: { name: 'Matt', password: 'matt123', admin: true },
@@ -27,21 +26,19 @@ function is_empty(map) {
    return true;
 }
 
-function Command() {
+function Command(socket, io) {
    if (this instanceof Command) {
-
+      this.socket = socket;
+      this.io = io;
+      // self.admin = module.exports.Users[ module.exports.Clients[self.socket.id].username ].admin
    } else {
-      return new Command();
+      return new Command(socket, io);
    }
 }
 
-Command.Setup = function(socket, io) {
-   self.socket = socket;
-   self.io = io;
-   self.admin = module.exports.Users[ module.exports.Clients[self.socket.id].username ].admin
-}
+Command.prototype.UUID_Socket = function(u) {
+   var self = this;
 
-Command.UUID_Socket = function(u) {
    var clients = module.exports.Clients;
 
    for (var k in clients) {
@@ -53,7 +50,9 @@ Command.UUID_Socket = function(u) {
    return false;
 }
 
-Command.UUID_SocketId = function(u) {
+Command.prototype.UUID_SocketId = function(u) {
+   var self = this;
+
    var clients = module.exports.Clients;
 
    for (var k in clients) {
@@ -65,11 +64,13 @@ Command.UUID_SocketId = function(u) {
    return false;
 }
 
-Command.Do = function(command, args) {
+Command.prototype.Do = function(command, args) {
+   var self = this;
+
    switch(command) {
       case 'encrypt':
          if (args.length === 1) {
-            Command.EncryptMessage( Crypto.GenerateKey(), Crypto.GenerateSalt(), args[0], true );
+            self.EncryptMessage( Crypto.GenerateKey(), Crypto.GenerateSalt(), args[0], true );
             break;
          }
 
@@ -78,7 +79,7 @@ Command.Do = function(command, args) {
             break;
          }
 
-         Command.EncryptMessage( args[0], args[1], args[2], false );
+         self.EncryptMessage( args[0], args[1], args[2], false );
          break;
 
       case 'decrypt':
@@ -87,7 +88,7 @@ Command.Do = function(command, args) {
             break;
          }
 
-         Command.DecryptMessage( args[0], args[1], args[2] );
+         self.DecryptMessage( args[0], args[1], args[2] );
          break;
 
       case 'impersonate':
@@ -96,7 +97,7 @@ Command.Do = function(command, args) {
             break;
          }
 
-         Command.Impersonate(args);
+         self.Impersonate(args);
          break;
 
       case 'nick':
@@ -110,13 +111,13 @@ Command.Do = function(command, args) {
             break;
          }
 
-         Command.Rename( module.exports.Clients[self.socket.id].username, args[0] );
+         self.Rename( module.exports.Clients[self.socket.id].username, args[0] );
          break;
 
       case 'disconnect':
          // Allow self-disconnect
          if (!args[0] || args[0] === module.exports.Clients[self.socket.id].uuid) {
-            Command.Disconnect( self.socket );
+            self.Disconnect( self.socket );
             break;
          }
 
@@ -125,7 +126,7 @@ Command.Do = function(command, args) {
             break;
          }
 
-         Command.Disconnect( Command.UUID_Socket(args[0]) );
+         self.Disconnect( self.UUID_Socket(args[0]) );
          break;
 
       case 'reboot':
@@ -134,7 +135,7 @@ Command.Do = function(command, args) {
             break;
          }
 
-         Command.Reboot();
+         self.Reboot();
          break;
 
       default:
@@ -142,7 +143,9 @@ Command.Do = function(command, args) {
    }
 }
 
-Command.GenerateUUID = function() {
+Command.prototype.GenerateUUID = function() {
+   var self = this;
+
    var client_uuid;
    while (!client_uuid || module.exports.Clients[client_uuid] !== undefined) {
       client_uuid = uuid.v4();
@@ -151,7 +154,9 @@ Command.GenerateUUID = function() {
    return client_uuid;
 }
 
-Command.Broadcast = function(emitter, data, excludes, includes) {
+Command.prototype.Broadcast = function(emitter, data, excludes, includes) {
+   var self = this;
+
    for (var socket_id in module.exports.Clients) {
       var u = module.exports.Clients[socket_id].uuid;
 
@@ -166,7 +171,9 @@ Command.Broadcast = function(emitter, data, excludes, includes) {
 }
 
 // Sends key and salt with ciphertext (subject to MITM)
-Command.EncryptBroadcast = function(send, client_select) {
+Command.prototype.EncryptBroadcast = function(send, client_select) {
+   var self = this;
+
    var recipients = get_keys(client_select);
 
    Crypto.Config.secret_key = Crypto.GenerateKey();
@@ -180,13 +187,13 @@ Command.EncryptBroadcast = function(send, client_select) {
       client_encoded.salt = Crypto.Config.salt;
       client_encoded.message = ciphertext;
 
-      console.log('EncryptBroadcast to ' + JSON.stringify(recipients));
-
-      Command.Broadcast('encoded', client_encoded, [], recipients);
+      self.Broadcast('encoded', client_encoded, [], recipients);
    });
 }
 
-Command.EncryptMessage = function(key, salt, plaintext, display_decrypt) {
+Command.prototype.EncryptMessage = function(key, salt, plaintext, display_decrypt) {
+   var self = this;
+
    Crypto.Config.secret_key = key;
    Crypto.Config.salt = salt;
    Crypto.Reload();
@@ -204,16 +211,16 @@ Command.EncryptMessage = function(key, salt, plaintext, display_decrypt) {
    }
 }
 
-// TODO: Refactor. Instantiate Command class per socket.
-// Temporary Fix: Pass socket to emit to.
-Command.DecryptMessage = function(key, salt, ciphertext, decode_request, socket) {
+Command.prototype.DecryptMessage = function(key, salt, ciphertext, decode_request) {
+   var self = this;
+
    Crypto.Config.secret_key = key;
    Crypto.Config.salt = salt;
    Crypto.Reload();
 
    try {
       Crypto.Decrypt(ciphertext, function (err, plaintext) {
-         var response = { message: Command.SanitizeMessage(plaintext) };
+         var response = { message: self.SanitizeMessage(plaintext) };
 
          // Handle request to decode incoming message
          if (decode_request) {
@@ -221,16 +228,16 @@ Command.DecryptMessage = function(key, salt, ciphertext, decode_request, socket)
             response.decoded = true;
          }
 
-         console.log('DecryptMessage to ' + module.exports.Clients[socket.id].username + ': ' + JSON.stringify(response));
-
-         socket.emit('message', response);
+         module.exports.Clients[self.socket.id].socket.emit('message', response);
       });
    } catch(err) {
       socket.emit('message', { message: 'Decrypt error.', error: err });
    }
 }
 
-Command.SanitizeMessage = function(message) {
+Command.prototype.SanitizeMessage = function(message) {
+   var self = this;
+
 
    if (module.exports.Users[ module.exports.Clients[self.socket.id].username ].htmlspecialchars !== true) {
       message = (message).replace(/&/g, '&amp;');
@@ -244,19 +251,25 @@ Command.SanitizeMessage = function(message) {
    return message;
 }
 
-Command.Reboot = function() {
+Command.prototype.Reboot = function() {
+   var self = this;
+
    self.io.sockets.emit('message', { message: 'Disconnecting...' });
    self.io.sockets.emit('reload');
 
    module.exports.Clients = {};
 }
 
-Command.Rename = function(username, name) {
+Command.prototype.Rename = function(username, name) {
+   var self = this;
+
    module.exports.Users[username].name = name;
-   Command.RefreshOnline();
+   self.RefreshOnline();
 }
 
-Command.Disconnect = function(socket) {
+Command.prototype.Disconnect = function(socket) {
+   var self = this;
+
    var clients = module.exports.Clients;
 
    if (socket) {
@@ -265,16 +278,20 @@ Command.Disconnect = function(socket) {
       delete clients[socket.id]; // De-authenticate
 
       module.exports.Clients = clients;
-      Command.RefreshOnline();
+      self.RefreshOnline();
    }
 }
 
-Command.Impersonate = function(args) {
+Command.prototype.Impersonate = function(args) {
+   var self = this;
+
    var impersonate_name = args.shift();
    self.io.sockets.in('auth').emit('message', { name: impersonate_name, message: args.join(' ') });
 }
 
-Command.Online = function() {
+Command.prototype.Online = function() {
+   var self = this;
+
    var users_online = {};
 
    for (var k in module.exports.Clients) {
@@ -291,8 +308,10 @@ Command.Online = function() {
    return users_online;
 }
 
-Command.RefreshOnline = function() {
-   self.io.sockets.in('auth').emit('online', Command.Online());
+Command.prototype.RefreshOnline = function() {
+   var self = this;
+
+   self.io.sockets.in('auth').emit('online', self.Online());
 }
 
 module.exports = Command;

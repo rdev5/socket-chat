@@ -74,8 +74,12 @@ function is_empty(map) {
 // Maintain list of authenticated clients
 Command.Clients = {};
 
-// Note: Command.Setup() must be called prior to processing any commands for the connected socket.
+var SocketCommand = {};
+
+// Note: SocketCommand[socket.id].Setup() must be called prior to processing any commands for the connected socket.
 io.sockets.on('connection', function (socket) {
+
+   SocketCommand[socket.id] = new Command(socket, io);
 
    // Emit welcome message to newly connected socket
    socket.emit('message', { message: 'Connection successful. Please authenticate.' });
@@ -85,7 +89,7 @@ io.sockets.on('connection', function (socket) {
 
       if (Command.Users[data.username] !== undefined && Command.Users[data.username].password === data.password) {
 
-         var client_uuid = Command.GenerateUUID();
+         var client_uuid = SocketCommand[socket.id].GenerateUUID();
 
          // Save authenticated client details
          Command.Clients[socket.id] = {
@@ -95,6 +99,7 @@ io.sockets.on('connection', function (socket) {
             port: socket.handshake.address.port,
             socket: socket
          };
+         SocketCommand[socket.id].Clients = Command.Clients;
 
          // Join room
          socket.join('auth');
@@ -104,11 +109,10 @@ io.sockets.on('connection', function (socket) {
          socket.emit('ident', { success: true, uuid: client_uuid, name: Command.Users[data.username].name, admin: Command.Users[data.username].admin });
 
          // Broadcast user online to all but self
-         Command.Setup(socket, io);
-         Command.Broadcast('message', { message: Command.Users[data.username].name + ' is now online.' }, [ Command.Clients[socket.id].uuid ]);
+         SocketCommand[socket.id].Broadcast('message', { message: Command.Users[data.username].name + ' is now online.' }, [ Command.Clients[socket.id].uuid ]);
 
          // Update online users
-         io.sockets.in('auth').emit('online', Command.Online());
+         io.sockets.in('auth').emit('online', SocketCommand[socket.id].Online());
       } else {
          socket.emit('message', { message: 'Authentication failed. Please try again.' });
       }
@@ -116,11 +120,7 @@ io.sockets.on('connection', function (socket) {
 
    // Handle requests to decode messages
    socket.on('decode', function (data) {
-      // TODO: Refactor. Instantiate Command class per socket.
-      // Temporary Fix: Pass socket to emit to.
-      
-      // Command.Setup(socket, io);
-      Command.DecryptMessage(data.key, data.salt, data.message, data, socket);
+      SocketCommand[socket.id].DecryptMessage(data.key, data.salt, data.message, data);
    });
 
    // Handle disconnect
@@ -129,12 +129,11 @@ io.sockets.on('connection', function (socket) {
          return false;
 
       // Broadcast user offline to all but self
-      Command.Setup(socket, io);
-      Command.Broadcast('message', { message: Command.Users[Command.Clients[socket.id].username].name + ' is leaving the channel...' }, [ Command.Clients[socket.id].uuid ]);
-      Command.Disconnect(socket);
+      SocketCommand[socket.id].Broadcast('message', { message: Command.Users[Command.Clients[socket.id].username].name + ' is leaving the channel...' }, [ Command.Clients[socket.id].uuid ]);
+      SocketCommand[socket.id].Disconnect(socket);
    
       // Update online users
-      io.sockets.in('auth').emit('online', Command.Online());
+      io.sockets.in('auth').emit('online', SocketCommand[socket.id].Online());
    });
 
    // List for socket to emit data to 'send'
@@ -154,14 +153,12 @@ io.sockets.on('connection', function (socket) {
          admin: Command.Users[username].admin
       }
 
-      Command.Setup(socket, io);
-
       // Handle commands
       var cmd = (data.message).match(/^\/([^\s]+)/i);
       if (cmd) {
          var args = (data.message).split(' ');
          args.shift();
-         Command.Do(cmd[1], args);
+         SocketCommand[socket.id].Do(cmd[1], args);
          return;
       }
 
@@ -171,12 +168,12 @@ io.sockets.on('connection', function (socket) {
 
          // Include self
          if (!client_select[ Command.Clients[socket.id].uuid ]) {
-            // client_select[ Command.Clients[socket.id].uuid ] = true;
+            client_select[ Command.Clients[socket.id].uuid ] = true;
          }
 
-         Command.EncryptBroadcast(send, client_select);
+         SocketCommand[socket.id].EncryptBroadcast(send, client_select);
       } else {
-         send.message = Command.SanitizeMessage(send.message);
+         send.message = SocketCommand[socket.id].SanitizeMessage(send.message);
          io.sockets.in('auth').emit('message', send);
       }
    });
