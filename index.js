@@ -72,8 +72,9 @@ function is_empty(map) {
 
 // Maintain list of authenticated clients
 var SocketCommand = {};
-var Users = Command.Users;
+var GlobalCommand = new Command();
 var Clients = {};
+var Users = GlobalCommand.GetUsers();
 
 // Note: SocketCommand[socket.id].Setup() must be called prior to processing any commands for the connected socket.
 io.sockets.on('connection', function (socket) {
@@ -96,11 +97,8 @@ io.sockets.on('connection', function (socket) {
       io.sockets.in('auth').emit('online', SocketCommand[socket.id].Online());
    });
 
-
    // Authentication
    socket.on('auth', function (data) {
-
-      Users = SocketCommand[socket.id].Users;
 
       if (Users[data.username] !== undefined && Users[data.username].password === Crypto.Hash(data.password)) {
 
@@ -115,10 +113,8 @@ io.sockets.on('connection', function (socket) {
             socket: socket
          };
 
-         // Update SocketCommand Clients
-         for (var socket_id in SocketCommand) {
-            SocketCommand[socket_id].Clients = Clients;
-         }
+         // Propagate Clients
+         for (var socket_id in SocketCommand) SocketCommand[socket_id].Clients = Clients;
 
          SocketCommand[socket.id].Join('auth');
       } else {
@@ -151,6 +147,11 @@ io.sockets.on('connection', function (socket) {
          var args = (data.message).split(' ');
          args.shift();
          SocketCommand[socket.id].Do(cmd[1], args);
+
+         // Update and propagate Clients
+         Clients = SocketCommand[socket.id].Clients;
+         for (var socket_id in SocketCommand) SocketCommand[socket_id].Clients = Clients;
+         
          return;
       } else {
 

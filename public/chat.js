@@ -95,21 +95,15 @@ window.onload = function() {
    }
 
    sendButton.onclick = function() {
-      if (name.value === '') {
-         alert('Please enter your name!');
-      } else {
-         var text = field.value;
-         var send = {
-            message: text,
-            name: name.value,
-            uuid: uuid.value,
-            client_select: JSON.stringify(checked_values('client_select'))
-         }
-         socket.emit('send', send);
-
-         field.value = '';
-         field.focus();
+      var text = field.value;
+      var send = {
+         message: text,
+         client_select: JSON.stringify(checked_values('client_select'))
       }
+      socket.emit('send', send);
+
+      field.value = '';
+      field.focus();
    };
 
    $('#authenticate').click(function() {

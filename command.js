@@ -23,15 +23,23 @@ function Command(socket, io) {
       this.socket = socket;
       this.io = io;
       this.Clients = {};
-      this.Users = {
-         matt: { name: 'Matt', password: 'e259a43ba6df0f48aaef42d283fb926c28715decb365321c7c628d817cc2da427460f7d072f3d64d4d7cdb9f1d4b83d7c8554c44d0f4e2584d2db956c81b3f9d', admin: true },
-         bob: { name: 'Bob', password: 'b0b0f9b64e165df1203156f10e1e9757c66ebc6f449efe90b9228d7a9a289bb508e74f6c892205705f3e91a2e3e900f7157a100b703c49176d1b5944989001ce' },
-         john: { name: 'John', password: '110c77e53781bfce2f0d8f7c73551a4733bbd63f45b3e22227c93b9524cd9a77cf0543b2a3e35f286fed6eda89f0ff3605ce51cba81d50bb0245a5078a3ca23e' },
-         demo: { name: 'Guest', password: 'abc60fba95338609bb9b0e5fd23ccd6c021ddd77983cf3848e54961121adb56ac320fe4e7b61fb968ee9b023755635f3152c0217722e0bfff31d81900695f808' }
-      };
+      this.Users = this.GetUsers();
    } else {
       return new Command(socket, io);
    }
+}
+
+Command.prototype.GetUsers = function() {
+   var self = this;
+
+   var users = {
+      matt: { name: 'Matt', password: 'e259a43ba6df0f48aaef42d283fb926c28715decb365321c7c628d817cc2da427460f7d072f3d64d4d7cdb9f1d4b83d7c8554c44d0f4e2584d2db956c81b3f9d', admin: true },
+      bob: { name: 'Bob', password: 'b0b0f9b64e165df1203156f10e1e9757c66ebc6f449efe90b9228d7a9a289bb508e74f6c892205705f3e91a2e3e900f7157a100b703c49176d1b5944989001ce' },
+      john: { name: 'John', password: '110c77e53781bfce2f0d8f7c73551a4733bbd63f45b3e22227c93b9524cd9a77cf0543b2a3e35f286fed6eda89f0ff3605ce51cba81d50bb0245a5078a3ca23e' },
+      demo: { name: 'Guest', password: 'abc60fba95338609bb9b0e5fd23ccd6c021ddd77983cf3848e54961121adb56ac320fe4e7b61fb968ee9b023755635f3152c0217722e0bfff31d81900695f808' }
+   };
+
+   return users;
 }
 
 Command.prototype.Admin = function() {
@@ -168,7 +176,7 @@ Command.prototype.Join = function(room) {
    self.socket.emit('message', {
       message: 'Authentication successful. Welcome back, ' + self.Users[ self.Clients[self.socket.id].username ].name + '!'
    });
-   
+
    self.socket.emit('ident', {
       success: true,
       uuid: self.Clients[self.socket.id].uuid,
