@@ -1,14 +1,6 @@
 var Crypto = require('./crypto');
 var uuid = require('node-uuid');
 
-var clients = {};
-var users = {
-   matt: { name: 'Matt', password: 'e259a43ba6df0f48aaef42d283fb926c28715decb365321c7c628d817cc2da427460f7d072f3d64d4d7cdb9f1d4b83d7c8554c44d0f4e2584d2db956c81b3f9d', admin: true },
-   bob: { name: 'Bob', password: 'b0b0f9b64e165df1203156f10e1e9757c66ebc6f449efe90b9228d7a9a289bb508e74f6c892205705f3e91a2e3e900f7157a100b703c49176d1b5944989001ce' },
-   john: { name: 'John', password: '110c77e53781bfce2f0d8f7c73551a4733bbd63f45b3e22227c93b9524cd9a77cf0543b2a3e35f286fed6eda89f0ff3605ce51cba81d50bb0245a5078a3ca23e' },
-   demo: { name: 'Guest', password: 'abc60fba95338609bb9b0e5fd23ccd6c021ddd77983cf3848e54961121adb56ac320fe4e7b61fb968ee9b023755635f3152c0217722e0bfff31d81900695f808' }
-};
-
 function get_keys(obj) {
    var keys = [];
    for (var k in obj) {
@@ -31,10 +23,21 @@ function Command(socket, io) {
       this.socket = socket;
       this.io = io;
       this.Clients = {};
-      // self.admin = module.exports.Users[ self.Clients[self.socket.id].username ].admin
+      this.Users = {
+         matt: { name: 'Matt', password: 'e259a43ba6df0f48aaef42d283fb926c28715decb365321c7c628d817cc2da427460f7d072f3d64d4d7cdb9f1d4b83d7c8554c44d0f4e2584d2db956c81b3f9d', admin: true },
+         bob: { name: 'Bob', password: 'b0b0f9b64e165df1203156f10e1e9757c66ebc6f449efe90b9228d7a9a289bb508e74f6c892205705f3e91a2e3e900f7157a100b703c49176d1b5944989001ce' },
+         john: { name: 'John', password: '110c77e53781bfce2f0d8f7c73551a4733bbd63f45b3e22227c93b9524cd9a77cf0543b2a3e35f286fed6eda89f0ff3605ce51cba81d50bb0245a5078a3ca23e' },
+         demo: { name: 'Guest', password: 'abc60fba95338609bb9b0e5fd23ccd6c021ddd77983cf3848e54961121adb56ac320fe4e7b61fb968ee9b023755635f3152c0217722e0bfff31d81900695f808' }
+      };
    } else {
       return new Command(socket, io);
    }
+}
+
+Command.prototype.Admin = function() {
+   var self = this;
+
+   return self.Users[ self.Clients[self.socket.id].username ].admin;
 }
 
 Command.prototype.UUID_Socket = function(u) {
@@ -93,7 +96,7 @@ Command.prototype.Do = function(command, args) {
          break;
 
       case 'impersonate':
-         if (!self.admin) {
+         if (!self.Admin()) {
             self.socket.emit('message', { message: 'Access denied.' });
             break;
          }
@@ -102,7 +105,7 @@ Command.prototype.Do = function(command, args) {
          break;
 
       case 'nick':
-         if (!self.admin) {
+         if (!self.Admin()) {
             self.socket.emit('message', { message: 'Access denied.' });
             break;
          }
@@ -122,7 +125,7 @@ Command.prototype.Do = function(command, args) {
             break;
          }
 
-         if (!self.admin) {
+         if (!self.Admin()) {
             self.socket.emit('message', { message: 'Access denied.' });
             break;
          }
@@ -131,7 +134,7 @@ Command.prototype.Do = function(command, args) {
          break;
 
       case 'reboot':
-         if (!self.admin) {
+         if (!self.Admin()) {
             self.socket.emit('message', { message: 'Access denied.' });
             break;
          }
@@ -153,6 +156,31 @@ Command.prototype.GenerateUUID = function() {
    }
 
    return client_uuid;
+}
+
+Command.prototype.Join = function(room) {
+   var self = this;
+
+   // Join room
+   self.socket.join(room);
+
+   // Send UUID
+   self.socket.emit('message', {
+      message: 'Authentication successful. Welcome back, ' + self.Users[ self.Clients[self.socket.id].username ].name + '!'
+   });
+   
+   self.socket.emit('ident', {
+      success: true,
+      uuid: self.Clients[self.socket.id].uuid,
+      name: self.Users[ self.Clients[self.socket.id].username ].name,
+      admin: self.Users[ self.Clients[self.socket.id].username ].admin
+   });
+
+   // Broadcast user online to all but self
+   self.Broadcast('message', { message: self.Users[ self.Clients[self.socket.id].username ].name + ' is now online.' }, [ self.Clients[self.socket.id].uuid ]);
+
+   // Update online users
+   self.io.sockets.in(room).emit('online', self.Online());
 }
 
 Command.prototype.Broadcast = function(emitter, data, excludes, includes) {
@@ -245,11 +273,11 @@ Command.prototype.SanitizeMessage = function(message) {
    var self = this;
 
 
-   if (module.exports.Users[ self.Clients[self.socket.id].username ].htmlspecialchars !== true) {
+   if (self.Users[ self.Clients[self.socket.id].username ].htmlspecialchars !== true) {
       message = (message).replace(/&/g, '&amp;');
    }
 
-   if (module.exports.Users[ self.Clients[self.socket.id].username ].html !== true) {
+   if (self.Users[ self.Clients[self.socket.id].username ].html !== true) {
       message = (message).replace(/</g, '&lt;');
       message = (message).replace(/>/g, '&gt;');
    }
@@ -269,7 +297,7 @@ Command.prototype.Reboot = function() {
 Command.prototype.Rename = function(username, name) {
    var self = this;
 
-   module.exports.Users[username].name = name;
+   self.Users[username].name = name;
    self.RefreshOnline();
 }
 
@@ -305,10 +333,10 @@ Command.prototype.Online = function() {
       var username = self.Clients[k].username;
       var user_uuid = self.Clients[k].uuid;
       users_online[user_uuid] = {
-         name: module.exports.Users[username].name,
-         admin: module.exports.Users[username].admin,
-         htmlspecialchars: module.exports.Users[username].htmlspecialchars,
-         html: module.exports.Users[username].html
+         name: self.Users[username].name,
+         admin: self.Users[username].admin,
+         htmlspecialchars: self.Users[username].htmlspecialchars,
+         html: self.Users[username].html
       };
    }
 
@@ -322,4 +350,3 @@ Command.prototype.RefreshOnline = function() {
 }
 
 module.exports = Command;
-module.exports.Users = users;

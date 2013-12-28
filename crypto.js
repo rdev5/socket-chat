@@ -1,18 +1,21 @@
 /*
  * Crypto Module
  * @author Matt Borja (rdev5)
- * @version 0.1.2
+ * @version 0.1.3
+ * @todo Refactor as prototype wrapper for crypto module
  *
  * Featured methods:
  * - Override default configuration by modifying Crypto.Config object and calling Crypto.Reload()
  * - UUID
  * - Sign() and Verify()
  * - Cipher() and Decipher()
+ * - Hash()
  * - Pack() and Unpack()
  * - GenerateIV()
  * - Blocks()
  * - Encrypt() and Decrypt() / Alias for Cipher+Pack() and Unpack+Decipher()
  */
+
 
 var fs = require('fs');
 var crypto = require('crypto');

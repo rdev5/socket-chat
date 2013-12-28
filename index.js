@@ -1,6 +1,5 @@
 var uuid = require('node-uuid');
 var express = require('express');
-var crypto = require('crypto');
 var Crypto = require('./crypto');
 var Command = require('./command');
 var os = require('os');
@@ -87,6 +86,8 @@ io.sockets.on('connection', function (socket) {
    // Authentication
    socket.on('auth', function (data) {
 
+      Users = SocketCommand[socket.id].Users;
+
       if (Users[data.username] !== undefined && Users[data.username].password === Crypto.Hash(data.password)) {
 
          var client_uuid = SocketCommand[socket.id].GenerateUUID();
@@ -105,18 +106,7 @@ io.sockets.on('connection', function (socket) {
             SocketCommand[socket_id].Clients = Clients;
          }
 
-         // Join room
-         socket.join('auth');
-
-         // Send UUID
-         socket.emit('message', { message: 'Authentication successful. Welcome back, ' + Users[data.username].name + '!' });
-         socket.emit('ident', { success: true, uuid: client_uuid, name: Users[data.username].name, admin: Users[data.username].admin });
-
-         // Broadcast user online to all but self
-         SocketCommand[socket.id].Broadcast('message', { message: Users[data.username].name + ' is now online.' }, [ Clients[socket.id].uuid ]);
-
-         // Update online users
-         io.sockets.in('auth').emit('online', SocketCommand[socket.id].Online());
+         SocketCommand[socket.id].Join('auth');
       } else {
          socket.emit('message', { message: 'Authentication failed. Please try again.' });
       }
