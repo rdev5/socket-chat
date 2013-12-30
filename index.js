@@ -117,8 +117,14 @@ io.sockets.on('connection', function (socket) {
          SocketCommand[socket.id].Command.username = Clients[socket.id].username;
          SocketCommand[socket.id].Command.uuid = Clients[socket.id].uuid;
 
-         // Propagate Clients
-         for (var socket_id in SocketCommand) SocketCommand[socket_id].Clients = Clients;
+         // Propagate Clients to authenticated sockets only
+         for (var socket_id in SocketCommand) {
+            if (!SocketCommand[socket_id].Command.username) {
+               continue;
+            }
+
+            SocketCommand[socket_id].Command.Clients = Clients;
+         }
 
          // Join the party!
          SocketCommand[socket.id].Command.Join('auth');

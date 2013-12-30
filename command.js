@@ -333,7 +333,6 @@ Command.prototype.Online = function() {
    var users_online = {};
 
    for (var k in self.Clients) {
-      console.log(k + ' found in Clients');
       var username = self.Clients[k].username;
       var user_uuid = self.Clients[k].uuid;
       users_online[user_uuid] = {
@@ -354,3 +353,4 @@ Command.prototype.RefreshOnline = function() {
 }
 
 module.exports = Command;
+
