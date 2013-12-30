@@ -18,6 +18,7 @@ window.onload = function() {
       $('#auth-form').show();
       $('#chat-controls').hide();
       $('#uuid').val('');
+      $('#online').html('');
 
       $('#username').focus();
    });
