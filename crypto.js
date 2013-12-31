@@ -1,7 +1,7 @@
 /*
  * Crypto Module
  * @author Matt Borja (rdev5)
- * @version 0.1.3
+ * @version 0.1.4
  * @todo Refactor as prototype wrapper for crypto module
  *
  * Featured methods:
@@ -9,7 +9,7 @@
  * - UUID
  * - Sign() and Verify()
  * - Cipher() and Decipher()
- * - Hash()
+ * - Hash() selector, HashCrypto(), HashBcrypt(), and VerifyHash() verification selector
  * - Pack() and Unpack()
  * - GenerateIV()
  * - Blocks()
