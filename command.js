@@ -24,6 +24,7 @@ function Command(socket, io) {
       this.io = io;
       this.username = null;
       this.uuid = null;
+      this.room = 'auth';
       this.Clients = {};
       this.Users = {};
    } else {
@@ -174,7 +175,7 @@ Command.prototype.Authenticate = function(username, password) {
       self.uuid = self.Clients[self.socket.id].uuid;
 
       // Join the party!
-      self.Join('auth');
+      self.Join(self.room);
    } else {
       self.socket.emit('message', { message: 'Authentication failed. Please try again.' });
    }
@@ -339,7 +340,7 @@ Command.prototype.Disconnect = function(socket) {
       socket = self.socket;
    }
 
-   socket.leave('auth'); // Leave authenticated room
+   socket.leave(self.room); // Leave authenticated room
    socket.emit('reload'); // Refresh client UI
    delete self.Clients[socket.id]; // De-authenticate
 
@@ -350,7 +351,7 @@ Command.prototype.Impersonate = function(args) {
    var self = this;
 
    var impersonate_name = args.shift();
-   self.io.sockets.in('auth').emit('message', { name: impersonate_name, message: args.join(' ') });
+   self.io.sockets.in(self.room).emit('message', { name: impersonate_name, message: args.join(' ') });
 }
 
 Command.prototype.Online = function() {
@@ -375,7 +376,7 @@ Command.prototype.Online = function() {
 Command.prototype.RefreshOnline = function() {
    var self = this;
 
-   self.io.sockets.in('auth').emit('online', self.Online());
+   self.io.sockets.in(self.room).emit('online', self.Online());
 }
 
 module.exports = Command;
