@@ -2,7 +2,14 @@ socket-chat
 ===========
 > Written by Matt Borja
 
-A handy chat application server and client written in socket.io for the purposes of learning socket programming in Node.js.
+Developer-friendly socket chat application written in Node.js containing many useful helper functions for all your socket interaction needs.
+
+Main features:
+- Sockets (socket.io)
+- Crypto (bcrypt + crypto)
+- YAML Configuration (yaml-config)
+- Custom set of IRC-like chat commands
+- Client authentication, access control lists, and more!
 
 Features:
 - Client authentication implementing Bcrypt hashing and server issued unique UUID issuing
