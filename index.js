@@ -106,7 +106,7 @@ io.sockets.on('connection', function (socket) {
 
    // Save authenticated client details
    socket.on('auth', function (data) {
-      SocketCommand[socket.id].Command.Authenticate(data.username, data.password, SocketCommand);
+      SocketCommand[socket.id].Command.Authenticate(data.username, data.password);
    });
 
 
@@ -134,7 +134,6 @@ io.sockets.on('connection', function (socket) {
          var args = (data.message).split(' ');
          args.shift();
          SocketCommand[socket.id].Command.Do(cmd[1], args);
-
          return;
       } else {
          // Send plaintext

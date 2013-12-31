@@ -114,6 +114,7 @@ Command.prototype.Do = function(command, args) {
          self.Rename( self.username, args[0] );
          break;
 
+      case 'logoff':
       case 'disconnect':
          // Allow self-disconnect
          if (!args[0] || args[0] === self.uuid) {
@@ -306,13 +307,22 @@ Command.prototype.SanitizeMessage = function(message) {
    return message;
 }
 
+// Because setting obj = {} was found to not be properly garbage collected?
+Command.prototype.ScrubObject = function(obj) {
+   for (var k in obj) {
+      delete obj[k];
+   }
+
+   return obj;
+}
+
 Command.prototype.Reboot = function() {
    var self = this;
 
    self.io.sockets.emit('message', { message: 'Disconnecting...' });
    self.io.sockets.emit('reload');
 
-   self.Clients = {};
+   self.ScrubObject(self.Clients);
 }
 
 Command.prototype.Rename = function(username, name) {
@@ -325,17 +335,14 @@ Command.prototype.Rename = function(username, name) {
 Command.prototype.Disconnect = function(socket) {
    var self = this;
 
-   var clients = self.Clients;
-
    if (!socket) {
       socket = self.socket;
    }
 
    socket.leave('auth'); // Leave authenticated room
    socket.emit('reload'); // Refresh client UI
-   delete clients[socket.id]; // De-authenticate
+   delete self.Clients[socket.id]; // De-authenticate
 
-   self.Clients = clients;
    self.RefreshOnline();
 }
 
