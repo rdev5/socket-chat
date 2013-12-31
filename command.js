@@ -1,3 +1,17 @@
+/*
+ * Command Module
+ * @author Matt Borja (rdev5)
+ * @version 0.2.0
+ *
+ * Featured methods:
+ * - Utility helper functions: get_keys(), is_empty(), ScrubObject()
+ * - Data model methods: GetUsers(), GetAuthorizedRooms(), GetRooms()
+ * - Helper functions (get_keys, is_empty, UUID_Socket, Admin, GenerateUUID, SanitizeMessage, ScrubObject)
+ * - Socket helper functions: Admin(), UUID_Socket(), Generate_UUID(), Authenticate(), RoomAvailable(), Join(), 
+ * - Message helper functions: Do(), Broadcast(), EncryptBroadcast(), EncryptMessage(), DecryptMessage(), SanitizeMessage()
+ * - Chat command helper methods: Reboot(), Rename(), Disconnect(), Impersonate(), Online(), RefreshOnline()
+ */
+
 var Crypto = require('./crypto');
 var uuid = require('node-uuid');
 
