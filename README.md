@@ -11,7 +11,7 @@ Main features:
 - Custom set of IRC-like chat commands
 - Client authentication, access control lists, and more!
 
-Features:
+Technical details:
 - Client authentication implementing Bcrypt hashing and server issued unique UUID issuing
 - Chat commands (see command.js for a complete list of currently available chat commands)
 - Handy crypto wrapper with signing, ciphering, packing, and hashing
