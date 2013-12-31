@@ -19,6 +19,7 @@
 
 var fs = require('fs');
 var crypto = require('crypto');
+var bcrypt = require('bcrypt');
 var uuid = require('node-uuid');
 var config = require('yaml-config').readConfig('./samples/config/crypto.yml');
 
@@ -124,12 +125,26 @@ Crypto.Verify = function(data, signature) {
             .verify( fs.readFileSync(config.public_key_file), signature, config.format );
 }
 
-// TODO: Replace with bcrypt
+// Hash verification selector
+Crypto.VerifyHash = function(data, hash) {
+   // HashCrypto
+   // return Crypto.HashCrypto(data) === hash;
+
+   // HashBcrypt
+   return bcrypt.compareSync(data, hash);
+}
+
+// Hash selector
 Crypto.Hash = function(data, iterations) {
    if (!iterations) {
       iterations = config.iterations;
    }
 
+   // return Crypto.HashCrypto(data, iterations);
+   return Crypto.HashBcrypt(data, iterations);
+}
+
+Crypto.HashCrypto = function(data, iterations) {
    for (var i = 1; i <= iterations; i++) {
       var hasher = crypto.createHash(config.hash_algorithm);
       hasher.update(data);
@@ -137,6 +152,13 @@ Crypto.Hash = function(data, iterations) {
    }
 
    return data;
+}
+
+Crypto.HashBcrypt = function(data, iterations) {
+   var salt = bcrypt.genSaltSync(iterations);
+   var hash = bcrypt.hashSync(data, salt);
+
+   return hash;
 }
 
 Crypto.Cipher = function(plaintext, secret_key, salt, iv, callback) {
