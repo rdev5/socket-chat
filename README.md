@@ -5,7 +5,7 @@ socket-chat
 A handy chat application server and client written in socket.io for the purposes of learning socket programming in Node.js.
 
 Features:
-- Client authentication with truly unique UUID issuing
+- Client authentication implementing Bcrypt hashing and server issued unique UUID issuing
 - Chat commands (see command.js for a complete list of currently available chat commands)
 - Handy crypto wrapper with signing, ciphering, packing, and hashing
 - Cross-Origin Resource Sharing (CORS)
