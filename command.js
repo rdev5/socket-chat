@@ -25,7 +25,7 @@ function Command(socket, io) {
       this.username = null;
       this.uuid = null;
       this.Clients = {};
-      this.Users = this.GetUsers();
+      this.Users = {};
    } else {
       return new Command(socket, io);
    }
@@ -50,7 +50,6 @@ Command.prototype.Admin = function() {
    return self.Users[ self.username ].admin;
 }
 
-// TODO: Refactor use of self.Clients
 Command.prototype.UUID_Socket = function(u) {
    var self = this;
 
@@ -144,7 +143,6 @@ Command.prototype.Do = function(command, args) {
    }
 }
 
-// TODO: Refactor use of self.Clients
 Command.prototype.GenerateUUID = function() {
    var self = this;
 
@@ -154,6 +152,31 @@ Command.prototype.GenerateUUID = function() {
    }
 
    return client_uuid;
+}
+
+Command.prototype.Authenticate = function(username, password) {
+   var self = this;
+
+   self.Users = self.GetUsers();
+   if (self.Users[username] !== undefined && self.Users[username].password === Crypto.Hash(password)) {
+
+      self.Clients[self.socket.id] = {
+         uuid: self.GenerateUUID(),
+         username: username,
+         ip: self.socket.handshake.address.address,
+         port: self.socket.handshake.address.port,
+         socket: self.socket
+      };
+
+      // Update SocketCommand
+      self.username = self.Clients[self.socket.id].username;
+      self.uuid = self.Clients[self.socket.id].uuid;
+
+      // Join the party!
+      self.Join('auth');
+   } else {
+      self.socket.emit('message', { message: 'Authentication failed. Please try again.' });
+   }
 }
 
 Command.prototype.Join = function(room) {
@@ -181,7 +204,6 @@ Command.prototype.Join = function(room) {
    self.io.sockets.in(room).emit('online', self.Online());
 }
 
-// TODO: Refactor use of self.Clients
 Command.prototype.Broadcast = function(emitter, data, excludes, includes) {
    var self = this;
 
@@ -284,7 +306,6 @@ Command.prototype.SanitizeMessage = function(message) {
    return message;
 }
 
-// TODO: Refactor use of self.Clients
 Command.prototype.Reboot = function() {
    var self = this;
 
@@ -301,7 +322,6 @@ Command.prototype.Rename = function(username, name) {
    self.RefreshOnline();
 }
 
-// TODO: Refactor use of self.Clients
 Command.prototype.Disconnect = function(socket) {
    var self = this;
 
@@ -326,7 +346,6 @@ Command.prototype.Impersonate = function(args) {
    self.io.sockets.in('auth').emit('message', { name: impersonate_name, message: args.join(' ') });
 }
 
-// TODO: Refactor use of self.Clients
 Command.prototype.Online = function() {
    var self = this;
 

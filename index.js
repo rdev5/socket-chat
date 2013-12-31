@@ -71,11 +71,9 @@ function is_empty(map) {
 }
 
 // Maintain list of authenticated clients
-var GlobalCommand = new Command();
+var Users = {};
 var Clients = {};
-var Users = GlobalCommand.GetUsers();
 
-// TODO: Refactor Clients into SocketCommand
 var SocketCommand = {};
 
 // Note: SocketCommand[socket.id].Command.Setup() must be called prior to processing any commands for the connected socket.
@@ -84,7 +82,13 @@ io.sockets.on('connection', function (socket) {
    // Setup SocketCommand
    SocketCommand[socket.id] = {};
    SocketCommand[socket.id].Command = new Command(socket, io);
+   SocketCommand[socket.id].Command.Clients = Clients;
+   SocketCommand[socket.id].Command.Users = Users;
 
+   // Propagates Users by references to all SocketCommand children
+   Users = SocketCommand[socket.id].Command.GetUsers();
+
+   // Greet new socket
    socket.emit('message', { message: 'Connection successful. Please authenticate.' });
 
    // Handle disconnect
@@ -94,7 +98,7 @@ io.sockets.on('connection', function (socket) {
 
       // Broadcast user offline to all but self
       SocketCommand[socket.id].Command.Disconnect();
-   
+      
       // Update online users
       io.sockets.in('auth').emit('online', SocketCommand[socket.id].Command.Online());
    });
@@ -102,35 +106,7 @@ io.sockets.on('connection', function (socket) {
 
    // Save authenticated client details
    socket.on('auth', function (data) {
-      var Users = GlobalCommand.GetUsers();
-      if (Users[data.username] !== undefined && Users[data.username].password === Crypto.Hash(data.password)) {
-
-         Clients[socket.id] = {
-            uuid: SocketCommand[socket.id].Command.GenerateUUID(),
-            username: data.username,
-            ip: socket.handshake.address.address,
-            port: socket.handshake.address.port,
-            socket: socket
-         };
-
-         // Update SocketCommand
-         SocketCommand[socket.id].Command.username = Clients[socket.id].username;
-         SocketCommand[socket.id].Command.uuid = Clients[socket.id].uuid;
-
-         // Propagate Clients to authenticated sockets only
-         for (var socket_id in SocketCommand) {
-            if (!SocketCommand[socket_id].Command.username) {
-               continue;
-            }
-
-            SocketCommand[socket_id].Command.Clients = Clients;
-         }
-
-         // Join the party!
-         SocketCommand[socket.id].Command.Join('auth');
-      } else {
-         socket.emit('message', { message: 'Authentication failed. Please try again.' });
-      }
+      SocketCommand[socket.id].Command.Authenticate(data.username, data.password, SocketCommand);
    });
 
 
@@ -159,13 +135,8 @@ io.sockets.on('connection', function (socket) {
          args.shift();
          SocketCommand[socket.id].Command.Do(cmd[1], args);
 
-         // Update and propagate Clients
-         Clients = SocketCommand[socket.id].Command.Clients;
-         for (var socket_id in SocketCommand) SocketCommand[socket_id].Clients = Clients;
-
          return;
       } else {
-
          // Send plaintext
          var send = {
             name: Users[ Clients[socket.id].username ].name,
