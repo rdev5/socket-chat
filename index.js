@@ -73,7 +73,7 @@ function is_empty(map) {
 // Maintain list of authenticated clients
 var Users = {};
 var Clients = {};
-
+var Rooms = {};
 var SocketCommand = {};
 
 // Note: SocketCommand[socket.id].Command.Setup() must be called prior to processing any commands for the connected socket.
@@ -84,9 +84,11 @@ io.sockets.on('connection', function (socket) {
    SocketCommand[socket.id].Command = new Command(socket, io);
    SocketCommand[socket.id].Command.Clients = Clients;
    SocketCommand[socket.id].Command.Users = Users;
+   SocketCommand[socket.id].Command.Rooms = Rooms;
 
-   // Propagates Users by references to all SocketCommand children
+   // Propagates shared objects by reference to all SocketCommand children
    Users = SocketCommand[socket.id].Command.GetUsers();
+   Rooms = SocketCommand[socket.id].Command.GetRooms();
 
    // Greet new socket
    socket.emit('message', { message: 'Connection successful. Please authenticate.' });
@@ -100,7 +102,7 @@ io.sockets.on('connection', function (socket) {
       SocketCommand[socket.id].Command.Disconnect();
       
       // Update online users
-      io.sockets.in('auth').emit('online', SocketCommand[socket.id].Command.Online());
+      io.sockets.in(SocketCommand[socket.id].room).emit('online', SocketCommand[socket.id].Command.Online());
    });
 
 
@@ -108,7 +110,6 @@ io.sockets.on('connection', function (socket) {
    socket.on('auth', function (data) {
       SocketCommand[socket.id].Command.Authenticate(data.username, data.password);
    });
-
 
    // Handle requests to decode messages
    socket.on('decode', function (data) {
@@ -149,7 +150,7 @@ io.sockets.on('connection', function (socket) {
             SocketCommand[socket.id].Command.EncryptBroadcast(send, client_select);
          } else {
             send.message = SocketCommand[socket.id].Command.SanitizeMessage(send.message);
-            io.sockets.in('auth').emit('message', send);
+            io.sockets.in(SocketCommand[socket.id].Command.room).emit('message', send);
          }
       }
    });

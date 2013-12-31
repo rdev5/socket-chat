@@ -22,11 +22,16 @@ function Command(socket, io) {
    if (this instanceof Command) {
       this.socket = socket;
       this.io = io;
+      this.domain = null;
       this.username = null;
       this.uuid = null;
-      this.room = 'auth';
       this.Clients = {};
       this.Users = {};
+      this.Rooms = {};
+
+      this.default_room = 'global';
+      this.room_scope = null;
+      this.room = null;
    } else {
       return new Command(socket, io);
    }
@@ -43,6 +48,57 @@ Command.prototype.GetUsers = function() {
    };
 
    return users;
+}
+
+Command.prototype.GetAuthorizedRooms = function(username) {
+   var self = this;
+
+   if (!username) {
+      username = self.username;
+   }
+
+   var authorized_rooms = {
+      matt: {
+         'matt': [ 'global' ],
+         'example.com': [ 'global', 'sales', 'tech', 'manager' ],
+         'sub.example.com': [ 'global' ],
+         'admin.example.com': [ 'global', 'manager' ],
+      },
+
+      bob: {
+         'bob': [ 'global' ],
+         'example.com': [ 'global', 'sales', 'tech', 'manager' ],
+         'sub.example.com': [ 'global' ],
+         'admin.example.com': [ 'global' ],
+      },
+
+      john: {
+         'john': [ 'global' ],
+         'example.com': [ 'global', 'sales', 'tech' ],
+         'sub.example.com': [ 'global' ],
+      },
+
+      demo: {
+         'demo': [ 'global'],
+         'example.com': [ 'global' ],
+      },
+   };
+
+   return authorized_rooms[self.username];
+}
+
+Command.prototype.GetRooms = function() {
+   var self = this;
+
+   var rooms = {
+      global: { name: 'Global Room' },
+      sales: { name: 'Sales Chat' },
+      tech: { name: 'Technical Support (Level 1)' },
+      manager: { name: 'Technical Support (Level 2)' },
+      developer: { name: 'Technical Support (Level 3)' },
+   };
+
+   return rooms;
 }
 
 Command.prototype.Admin = function() {
@@ -99,6 +155,16 @@ Command.prototype.Do = function(command, args) {
          }
 
          self.Impersonate(args);
+         break;
+
+      case 'join':
+         if (!args[0]) {
+            self.socket.emit('message', { message: 'Usage: /join &lt;room_id&gt;'});
+            break;
+         }
+
+         // TODO: Server manage self.room_scope
+         self.Join( self.room_scope, args[0] );
          break;
 
       case 'nick':
@@ -160,50 +226,89 @@ Command.prototype.Authenticate = function(username, password) {
    var self = this;
 
    self.Users = self.GetUsers();
+   self.Rooms = self.GetRooms();
+
    if (self.Users[username] !== undefined && self.Users[username].password === Crypto.Hash(password)) {
 
+      // Update self
+      self.username = username;
+      self.uuid = self.GenerateUUID();
+
+      // Initial room scope
+      self.room_scope = self.username;
+      self.room = self.default_room;
+
+      // Update global Clients
       self.Clients[self.socket.id] = {
-         uuid: self.GenerateUUID(),
-         username: username,
+         uuid: self.uuid,
+         username: self.username,
          ip: self.socket.handshake.address.address,
          port: self.socket.handshake.address.port,
-         socket: self.socket
+         socket: self.socket,
+         room: self.room
       };
 
-      // Update SocketCommand
-      self.username = self.Clients[self.socket.id].username;
-      self.uuid = self.Clients[self.socket.id].uuid;
+      // Send UUID
+      self.socket.emit('message', {
+         message: 'Authentication successful. Welcome back, ' + self.Users[ self.username ].name + '!'
+      });
 
-      // Join the party!
-      self.Join(self.room);
+      self.socket.emit('ident', {
+         success: true,
+         uuid: self.uuid,
+         name: self.Users[ self.username ].name,
+         admin: self.Users[ self.username ].admin
+      });
+
+      // Join initially scoped room
+      self.Join(self.room_scope, self.room);
    } else {
       self.socket.emit('message', { message: 'Authentication failed. Please try again.' });
    }
 }
 
-Command.prototype.Join = function(room) {
+Command.prototype.RoomAvailable = function(scope, room) {
    var self = this;
 
-   // Join room
-   self.socket.join(room);
+   self.AuthorizedRooms = self.GetAuthorizedRooms();
+   if (!self.AuthorizedRooms) {
+      console.log(self.username + ' has no authorized rooms to join');
+      return false;
+   }
 
-   // Send UUID
-   self.socket.emit('message', {
-      message: 'Authentication successful. Welcome back, ' + self.Users[ self.username ].name + '!'
-   });
+   if (!self.AuthorizedRooms[scope]) {
+      console.log(self.username + ' attempted to join unauthorized scope: ' + scope);
+      return false;
+   }
 
-   self.socket.emit('ident', {
-      success: true,
-      uuid: self.uuid,
-      name: self.Users[ self.username ].name,
-      admin: self.Users[ self.username ].admin
-   });
+   if (self.AuthorizedRooms[scope].indexOf(room) === -1) {
+      console.log(self.username + ' attempted to join unauthorized room (' + room + ') in authorized scope (' + scope + ')');
+      return false;
+   }
 
-   // Broadcast user online to all but self
+   return true;
+}
+
+Command.prototype.Join = function(scope, room) {
+   var self = this;
+
+   // TODO: Authorize room access
+   if (!self.RoomAvailable(scope, room)) {
+      self.socket.emit('message', { message: 'Channel (' + scope + ':' + room + ') not found. Please try again.' });
+      return;
+   }
+
+   // Update room scope for future messages
+   self.room_scope = scope;
+   self.room = self.room_scope + ':' + room;
+   self.socket.join(self.room);
+
+   // Greet new participate
+   self.socket.emit('message', { message: 'You are now in <strong>' + self.room + '</strong>' });
    self.Broadcast('message', { message: self.Users[ self.username ].name + ' is now online.' }, [ self.uuid ]);
 
    // Update online users
-   self.io.sockets.in(room).emit('online', self.Online());
+   self.io.sockets.in(self.room).emit('online', self.Online());
 }
 
 Command.prototype.Broadcast = function(emitter, data, excludes, includes) {
@@ -218,6 +323,9 @@ Command.prototype.Broadcast = function(emitter, data, excludes, includes) {
       if (includes !== undefined && includes.indexOf(u) === -1)
          continue;
 
+      if (self.Clients[socket_id].room !== self.room)
+         continue;
+      
       self.Clients[socket_id].socket.emit(emitter, data);
    }
 }
@@ -360,6 +468,10 @@ Command.prototype.Online = function() {
    var users_online = {};
 
    for (var k in self.Clients) {
+      if (self.Clients[k].room != self.room) {
+         continue;
+      }
+
       var username = self.Clients[k].username;
       var user_uuid = self.Clients[k].uuid;
       users_online[user_uuid] = {
