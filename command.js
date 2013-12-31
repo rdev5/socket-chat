@@ -22,7 +22,6 @@ function Command(socket, io) {
    if (this instanceof Command) {
       this.socket = socket;
       this.io = io;
-      this.domain = null;
       this.username = null;
       this.uuid = null;
       this.Clients = {};
