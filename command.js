@@ -227,7 +227,6 @@ Command.prototype.Authenticate = function(username, password) {
    self.Users = self.GetUsers();
    self.Rooms = self.GetRooms();
 
-   console.log(username + ': ' + Crypto.HashBcrypt(password));
    if (self.Users[username] && Crypto.VerifyHash(password, self.Users[username].password)) {
 
       // Update self
