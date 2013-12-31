@@ -76,19 +76,19 @@ var Clients = {};
 var Rooms = {};
 var SocketCommand = {};
 
-// Note: SocketCommand[socket.id].Command.Setup() must be called prior to processing any commands for the connected socket.
+// Note: SocketCommand[socket.id].Setup() must be called prior to processing any commands for the connected socket.
 io.sockets.on('connection', function (socket) {
 
    // Setup SocketCommand
    SocketCommand[socket.id] = {};
-   SocketCommand[socket.id].Command = new Command(socket, io);
-   SocketCommand[socket.id].Command.Clients = Clients;
-   SocketCommand[socket.id].Command.Users = Users;
-   SocketCommand[socket.id].Command.Rooms = Rooms;
+   SocketCommand[socket.id] = new Command(socket, io);
+   SocketCommand[socket.id].Clients = Clients;
+   SocketCommand[socket.id].Users = Users;
+   SocketCommand[socket.id].Rooms = Rooms;
 
    // Propagates shared objects by reference to all SocketCommand children
-   Users = SocketCommand[socket.id].Command.GetUsers();
-   Rooms = SocketCommand[socket.id].Command.GetRooms();
+   Users = SocketCommand[socket.id].GetUsers();
+   Rooms = SocketCommand[socket.id].GetRooms();
 
    // Greet new socket
    socket.emit('message', { message: 'Connection successful. Please authenticate.' });
@@ -99,16 +99,16 @@ io.sockets.on('connection', function (socket) {
          return false;
 
       // Broadcast user offline to all but self
-      SocketCommand[socket.id].Command.Disconnect();
+      SocketCommand[socket.id].Disconnect();
       
       // Update online users
-      io.sockets.in(SocketCommand[socket.id].room).emit('online', SocketCommand[socket.id].Command.Online());
+      io.sockets.in(SocketCommand[socket.id].room).emit('online', SocketCommand[socket.id].Online());
    });
 
 
    // Save authenticated client details
    socket.on('auth', function (data) {
-      SocketCommand[socket.id].Command.Authenticate(data.username, data.password);
+      SocketCommand[socket.id].Authenticate(data.username, data.password);
    });
 
    // Handle requests to decode messages
@@ -118,7 +118,7 @@ io.sockets.on('connection', function (socket) {
          return false;
       }
 
-      SocketCommand[socket.id].Command.DecryptMessage(data.key, data.salt, data.message, data);
+      SocketCommand[socket.id].DecryptMessage(data.key, data.salt, data.message, data);
    });
 
 
@@ -134,7 +134,7 @@ io.sockets.on('connection', function (socket) {
       if (cmd) {
          var args = (data.message).split(' ');
          args.shift();
-         SocketCommand[socket.id].Command.Do(cmd[1], args);
+         SocketCommand[socket.id].Do(cmd[1], args);
          return;
       } else {
          // Send plaintext
@@ -147,10 +147,10 @@ io.sockets.on('connection', function (socket) {
          // Send encrypted
          var client_select = JSON.parse(data.client_select);
          if (!is_empty(client_select)) {
-            SocketCommand[socket.id].Command.EncryptBroadcast(send, client_select);
+            SocketCommand[socket.id].EncryptBroadcast(send, client_select);
          } else {
-            send.message = SocketCommand[socket.id].Command.SanitizeMessage(send.message);
-            io.sockets.in(SocketCommand[socket.id].Command.room).emit('message', send);
+            send.message = SocketCommand[socket.id].SanitizeMessage(send.message);
+            io.sockets.in(SocketCommand[socket.id].room).emit('message', send);
          }
       }
    });
