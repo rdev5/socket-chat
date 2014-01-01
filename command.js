@@ -116,6 +116,11 @@ Command.prototype.GetAuthorizedRooms = function(username) {
          'sub.example.com': [ 'global' ],
       },
 
+      asdf: {
+         'asdf': [ 'global' ],
+         'example.com': [ 'global' ],
+      },
+
       demo: {
          'demo': [ 'global'],
          'example.com': [ 'global' ],
@@ -404,6 +409,8 @@ Command.prototype.Join = function(scope, room) {
    self.room = self.room_scope + ':' + room;
    self.socket.join(self.room);
 
+   self.Clients[self.socket.id].room = self.room;
+
    // Greet new participate
    self.socket.emit('message', { message: 'You are now in <strong>' + self.room + '</strong>' });
    self.Broadcast('message', { message: self.Users[ self.username ].name + ' is now online.' }, [ self.uuid ]);
@@ -549,6 +556,8 @@ Command.prototype.Disconnect = function(socket) {
       socket = self.socket;
    }
 
+   self.Broadcast('message', { message: (self.Users[ self.username ].name ? self.Users[ self.username ].name : self.username) + ' is leaving the channel...' }, [ self.uuid ]);
+
    socket.leave(self.room); // Leave authenticated room
    socket.emit('reload'); // Refresh client UI
    delete self.Clients[socket.id]; // De-authenticate
@@ -576,7 +585,7 @@ Command.prototype.Online = function() {
       var username = self.Clients[k].username;
       var user_uuid = self.Clients[k].uuid;
       users_online[user_uuid] = {
-         name: self.Users[username].name,
+         name: self.Users[username].name ? self.Users[username].name : username,
          admin: self.Users[username].admin,
          htmlspecialchars: self.Users[username].htmlspecialchars,
          html: self.Users[username].html

@@ -144,7 +144,7 @@ io.sockets.on('connection', function (socket) {
       } else {
          // Send plaintext
          var send = {
-            name: Users[ Clients[socket.id].username ].name,
+            name: Users[ Clients[socket.id].username ].name ? Users[ Clients[socket.id].username ].name : Clients[socket.id].username,
             message: data.message,
             admin: Users[ Clients[socket.id].username ].admin
          }
