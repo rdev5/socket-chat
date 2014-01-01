@@ -44,7 +44,7 @@ function Command(socket, io) {
       this.Clients = {};
       this.Users = {};
       this.Rooms = {};
-      this.db = new Couchbase(CouchbaseConfig);
+      this.db = new Couchbase(CouchbaseConfig).db;
 
       this.default_room = 'global';
       this.room_scope = null;
@@ -57,6 +57,13 @@ function Command(socket, io) {
 Command.prototype.GetUsers = function() {
    var self = this;
 
+   if (!is_empty(self.Users)) {
+      return self.Users;
+   }
+
+   self.GetUsersInto(self.Users);
+
+   /*
    var users = {
       matt: { name: 'Matt', password: '$2a$10$M2RZioAR5J0iceSekKUU3eXDFtiGRPBQQnNo95XUkR4dID76RuN86', admin: true },
       bob: { name: 'Bob', password: '$2a$10$7VoJjKjImQeuKQEViIlK.OnvSUhxy5XUnxQZfS03Qw.YQdwgT5nBK' },
@@ -65,6 +72,20 @@ Command.prototype.GetUsers = function() {
    };
 
    return users;
+   */
+}
+
+Command.prototype.GetUsersInto = function(Users) {
+   var self = this;
+
+   self.db.get('Users', function(err, result) {
+      if (err) {
+         console.log('Error getting Users: ' + err);
+         return;
+      }
+
+      Users = result.value;
+   });
 }
 
 Command.prototype.GetAuthorizedRooms = function(username) {
@@ -241,13 +262,74 @@ Command.prototype.GenerateUUID = function() {
    return client_uuid;
 }
 
+Command.prototype.Register = function(username, password) {
+   var self = this;
+
+   // TODO: Set minimum username length in configuration file
+   if (username.length < 4) {
+      self.socket.emit('registration', { success: false, error: 'Username must be at least 4 characters long' });
+      return;
+   }
+
+   // TODO: Set minimum password length in configuration file
+   if (password.length < 6) {
+      self.socket.emit('registration', { success: false, error: 'Password must be at least 6 characters long' });
+      return;
+   }
+
+   self.db.get(username, function (err, result) {
+      if (!err) {
+         self.socket.emit('registration', { success: false, error: 'Username already exists' });
+         return;
+      } else {
+         var registration = {
+            username: username,
+            password: Crypto.Hash(password),
+            admin: false,
+            active: false
+         };
+
+         // TODO: Convert to UUID
+         self.db.set(username, registration, function (err, result) {
+            if (err) {
+               self.socket.emit('registration', { success: false, error: 'There was a problem registering your account. Please try again later.' });
+               console.log('Problem registering ' + username + ': ' + err);
+               return;
+            }
+
+            Users[username] = registration;
+
+            self.db.set('Users', Users, function (err, result) {
+               if (err) {
+                  console.log('Problem updating Users: ' + err);
+                  return;
+               }
+
+            });
+
+            self.socket.emit('registration', { success: true });
+         });
+      }
+   });
+}
+
 Command.prototype.Authenticate = function(username, password) {
    var self = this;
 
-   self.Users = self.GetUsers();
    self.Rooms = self.GetRooms();
 
-   if (self.Users[username] && Crypto.VerifyHash(password, self.Users[username].password)) {
+   self.db.get(username, function (err, result) {
+      if (err) {
+         self.socket.emit('message', { message: 'Authentication failed. Please try again.' });
+         console.log('Authentication failure for ' + username + ': ' + err);
+         return;
+      }
+
+      if (!Crypto.VerifyHash(password, result.value.password)) {
+         self.socket.emit('message', { message: 'Authentication failed. Please try again.' });
+         console.log('Authentication failure for ' + username + ': Invalid password');
+         return;
+      }
 
       // Update self
       self.username = username;
@@ -267,6 +349,8 @@ Command.prototype.Authenticate = function(username, password) {
          room: self.room
       };
 
+      self.Users[ self.username ] = result.value;
+
       // Send UUID
       self.socket.emit('message', {
          message: 'Authentication successful. Welcome back, ' + self.Users[ self.username ].name + '!'
@@ -281,9 +365,7 @@ Command.prototype.Authenticate = function(username, password) {
 
       // Join initially scoped room
       self.Join(self.room_scope, self.room);
-   } else {
-      self.socket.emit('message', { message: 'Authentication failed. Please try again.' });
-   }
+   });
 }
 
 Command.prototype.RoomAvailable = function(scope, room) {

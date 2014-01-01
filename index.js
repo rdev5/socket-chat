@@ -87,7 +87,7 @@ io.sockets.on('connection', function (socket) {
    SocketCommand[socket.id].Rooms = Rooms;
 
    // Propagates shared objects by reference to all SocketCommand children
-   Users = SocketCommand[socket.id].GetUsers();
+   SocketCommand[socket.id].GetUsersInto(Users);
    Rooms = SocketCommand[socket.id].GetRooms();
 
    // Greet new socket
@@ -113,7 +113,7 @@ io.sockets.on('connection', function (socket) {
 
    // Handle registration
    socket.on('register', function (data) {
-      socket.emit('registration', { success: false, error: 'Not implemented' });
+      SocketCommand[socket.id].Register(data.username, data.password);
    });
 
    // Handle requests to decode messages

@@ -28,6 +28,7 @@ window.onload = function() {
          return;
       }
 
+      $('#register-form').hide();
       $('#auth-form').hide();
       $('#chat-controls').show();
       $('#uuid').val(data.uuid);
@@ -40,6 +41,8 @@ window.onload = function() {
          $('#register-status').html('Registration failed: ' + data.error);
          return;
       }
+      
+      $('#register-status').html('Registration successful! You are now ready to login.');
 
       // Attempt auto-login
       $('#username').val( $('#register-username').val() );
@@ -119,6 +122,10 @@ window.onload = function() {
    };
 
    $('#register').click(function() {
+      if ( $('#register-password').val() !== $('#register-password-confirm').val() ) {
+         $('#register-status').html('Passwords do not match');
+         return false;
+      }
       socket.emit('register', { username: $('#register-username').val(), password: $('#register-password').val() });
    });
 
