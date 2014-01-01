@@ -1,7 +1,9 @@
-var uuid = require('node-uuid');
-var express = require('express');
 var Crypto = require('./crypto');
 var Command = require('./command');
+var CORS = require('./cors');
+
+var uuid = require('node-uuid');
+var express = require('express');
 var os = require('os');
 var app = express();
 var port = 3700;
@@ -21,20 +23,6 @@ function local_addr() {
     }
   }
   return addrs[0];
-};
-
-var CORS = function(req, res, next) {
-   res.header('Access-Control-Allow-Origin', '*');
-   res.header('Access-Control-Allow-Headers', 'Authorization, Content-Length, X-Requested-With');
-   res.header('Access-Control-Expose-Headers', 'Authorization, Content-Length, X-Requested-With');
-   res.header('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS');
-
-   // intercept OPTIONS method
-   if ('OPTIONS' == req.method) {
-      res.send(200);
-   } else {
-      next();
-   }
 };
 
 app.use(CORS);
@@ -139,7 +127,7 @@ io.sockets.on('connection', function (socket) {
       if (cmd) {
          var args = (data.message).split(' ');
          args.shift();
-         
+
          SocketCommand[socket.id].Do(cmd[1], args);
          return;
       } else {
