@@ -139,23 +139,19 @@ io.sockets.on('connection', function (socket) {
       if (cmd) {
          var args = (data.message).split(' ');
          args.shift();
+         
          SocketCommand[socket.id].Do(cmd[1], args);
          return;
       } else {
-         // Send plaintext
          var send = {
-            name: Users[ Clients[socket.id].username ].name ? Users[ Clients[socket.id].username ].name : Clients[socket.id].username,
             message: data.message,
-            admin: Users[ Clients[socket.id].username ].admin
          }
 
-         // Send encrypted
          var client_select = JSON.parse(data.client_select);
          if (!is_empty(client_select)) {
             SocketCommand[socket.id].EncryptBroadcast(send, client_select);
          } else {
-            send.message = SocketCommand[socket.id].SanitizeMessage(send.message);
-            io.sockets.in(SocketCommand[socket.id].room).emit('message', send);
+            SocketCommand[socket.id].Broadcast('message', { message: SocketCommand[socket.id].SanitizeMessage(send.message) });
          }
       }
    });

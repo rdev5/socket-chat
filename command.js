@@ -436,6 +436,14 @@ Command.prototype.Broadcast = function(emitter, data, excludes, includes) {
       if (self.Clients[socket_id].room !== self.room)
          continue;
 
+      if (!data.name) {
+         data.name = self.Users[ self.username ].name ? self.Users[ self.username ].name : self.username;
+      }
+
+      if (!data.admin) {
+         data.admin = self.Users[ self.username ].admin;
+      }
+
       self.Clients[socket_id].socket.emit(emitter, data);
    }
 }
