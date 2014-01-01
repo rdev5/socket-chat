@@ -302,7 +302,9 @@ Command.prototype.Register = function(username, password) {
                return;
             }
 
-            Users[username] = registration;
+            Users[username] = {
+               name: username
+            }
 
             self.db.set('Users', Users, function (err, result) {
                if (err) {
