@@ -176,8 +176,10 @@ Command.prototype.Do = function(command, args) {
             break;
          }
 
-         // TODO: Server manage self.room_scope
-         self.Join( self.room_scope, args[0] );
+         var room = args[0].split(':', 2);
+         self.socket.leave(self.room);
+         
+         self.Join( room[0], room[1] );
          break;
 
       case 'nick':
