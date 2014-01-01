@@ -79,9 +79,6 @@ var SocketCommand = {};
 // Note: SocketCommand[socket.id].Setup() must be called prior to processing any commands for the connected socket.
 io.sockets.on('connection', function (socket) {
 
-   socket.set('SOCKET_VAR_A', true);
-   console.log(socket);
-
    // Setup SocketCommand
    SocketCommand[socket.id] = {};
    SocketCommand[socket.id] = new Command(socket, io);
