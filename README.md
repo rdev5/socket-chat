@@ -4,6 +4,8 @@
 
 Developer-friendly socket chat application written in Node.js containing many useful helper functions for all your socket interaction needs.
 
+Note: README.md may be slightly out of date as many improvements are being committed very rapidly. Look in `command.js` for the complete list of supported features.
+
 ## Main Features
 
 - Sockets (socket.io)
