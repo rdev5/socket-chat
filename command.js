@@ -13,6 +13,9 @@
  */
 
 var Crypto = require('./crypto');
+var Couchbase = require('./couchbase');
+var CouchbaseConfig = require('yaml-config').readConfig('./samples/config/couchbase.yml');
+
 var uuid = require('node-uuid');
 
 function get_keys(obj) {
@@ -41,6 +44,7 @@ function Command(socket, io) {
       this.Clients = {};
       this.Users = {};
       this.Rooms = {};
+      this.db = new Couchbase(CouchbaseConfig);
 
       this.default_room = 'global';
       this.room_scope = null;

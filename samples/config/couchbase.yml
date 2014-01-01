@@ -1,0 +1,14 @@
+default:
+   host: 'localhost:8091'
+   bucket: 'socket-chat'
+   password: 'DefaultBucketPassword123'
+
+test:
+   host: 'localhost:8091'
+   bucket: 'socket-chat'
+   password: 'TestBucketPassword123'
+
+production:
+   host: 'localhost:8091'
+   bucket: 'socket-chat'
+   password: 'ProductionBucketPassword123'

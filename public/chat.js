@@ -24,16 +24,27 @@ window.onload = function() {
    });
 
    socket.on('ident', function (data) {
-      if (!data.success)
-         return false;
-
-      if (data.success) {
-         $('#auth-form').hide();
-         $('#chat-controls').show();
-         $('#uuid').val(data.uuid);
-
-         $('#field').focus();
+      if (!data.success) {
+         return;
       }
+
+      $('#auth-form').hide();
+      $('#chat-controls').show();
+      $('#uuid').val(data.uuid);
+
+      $('#field').focus();
+   });
+
+   socket.on('registration', function (data) {
+      if (!data.success) {
+         $('#register-status').html('Registration failed: ' + data.error);
+         return;
+      }
+
+      // Attempt auto-login
+      $('#username').val( $('#register-username').val() );
+      $('#password').val( $('#register-password').val() );
+      $('#authenticate').trigger('click');
    });
 
    socket.on('online', function (data) {
@@ -106,6 +117,10 @@ window.onload = function() {
       field.value = '';
       field.focus();
    };
+
+   $('#register').click(function() {
+      socket.emit('register', { username: $('#register-username').val(), password: $('#register-password').val() });
+   });
 
    $('#authenticate').click(function() {
       socket.emit('auth', { username: $('#username').val(), password: $('#password').val() });

@@ -111,6 +111,11 @@ io.sockets.on('connection', function (socket) {
       SocketCommand[socket.id].Authenticate(data.username, data.password);
    });
 
+   // Handle registration
+   socket.on('register', function (data) {
+      socket.emit('registration', { success: false, error: 'Not implemented' });
+   });
+
    // Handle requests to decode messages
    socket.on('decode', function (data) {
       if (!Clients[socket.id]) {

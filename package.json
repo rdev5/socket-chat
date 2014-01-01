@@ -7,7 +7,8 @@
         "express": "latest",
         "jade": "latest",
          "yaml-config": "~0.3.0",
-         "bcrypt": "~0.7.7"
+         "bcrypt": "~0.7.7",
+         "couchbase": "~1.2.0"
     },
     "author": "developer"
 }

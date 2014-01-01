@@ -37,6 +37,13 @@ html
           #content(style='float: left; width: 500px; height: 300px; margin: 0 0 10px 0; border: solid 1px #999; overflow-y: scroll;')
           #online(style='float: right; width: 200px; height: 300px; margin: 0 0 10px 10px; border: solid 1px #999; overflow-y: scroll;')
           #clear(style='clear: both;')
+          #register-form
+            input#register-username(placeholder='Username')
+            input#register-password(type='password', placeholder='Password')
+            input#register-confirm-password(type='password', placeholder='Confirm Password')
+            input#register(type='button', value='Register')
+            span#register-status
+            br
           #auth-form
             input#username(placeholder='Username')
             input#password(type='password', placeholder='Password')
