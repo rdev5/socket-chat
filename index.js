@@ -1,3 +1,10 @@
+/*
+ * Chat Application Server
+ * @author Matt Borja (rdev5)
+ * @version 0.3.0
+ *
+ */
+
 var Crypto = require('./crypto');
 var Command = require('./command');
 var CORS = require('./cors');

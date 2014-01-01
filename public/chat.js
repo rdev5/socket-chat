@@ -1,3 +1,10 @@
+/*
+ * Chat Application Client
+ * @author Matt Borja (rdev5)
+ * @version 0.3.0
+ *
+ */
+
 window.onload = function() {
 
    var messages = [];
