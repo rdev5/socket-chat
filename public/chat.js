@@ -22,6 +22,7 @@ window.onload = function() {
    });
 
    socket.on('connect', function (data) {
+      $('#register-form').show();
       $('#auth-form').show();
       $('#chat-controls').hide();
       $('#uuid').val('');
