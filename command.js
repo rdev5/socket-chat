@@ -122,7 +122,7 @@ Command.prototype.GetAuthorizedRooms = function(username) {
       },
 
       demo: {
-         'demo': [ 'global'],
+         'demo': [ 'global' ],
          'example.com': [ 'global' ],
       },
    };
@@ -361,6 +361,12 @@ Command.prototype.Authenticate = function(username, password) {
       // Send UUID
       self.socket.emit('message', {
          message: 'Authentication successful. Welcome back, ' + self.Users[ self.username ].name + '!'
+      });
+
+      // Send rooms
+      self.socket.emit('rooms', {
+         'example.com:global': { label: 'Global Chat' },
+         'example.com:sales': { label: 'Sales Chat' }
       });
 
       self.socket.emit('ident', {

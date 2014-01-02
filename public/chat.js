@@ -44,6 +44,16 @@ window.onload = function() {
       $('#field').focus();
    });
 
+   socket.on('rooms', function (data) {
+      $('#rooms').html('<option value="">Channels</option>');
+      for (var room_id in data) {
+         $('#rooms').append($('<option />', {
+            value: room_id,
+            text: data[room_id].label
+         }));
+      }
+   });
+
    socket.on('registration', function (data) {
       if (!data.success) {
          $('#register-status').html('Registration failed: ' + data.error);
@@ -128,6 +138,18 @@ window.onload = function() {
       field.value = '';
       field.focus();
    };
+
+   $('#rooms').change(function() {
+      var channel = $(this).find(":selected").val();
+      if (!channel) return false;
+
+      var send = {
+         message: '/join ' + channel
+      };
+      socket.emit('send', send);
+
+      console.log('Sent ' + JSON.stringify(send));
+   });
 
    $('#register').click(function() {
       if ( $('#register-password').val() !== $('#register-password-confirm').val() ) {
