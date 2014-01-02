@@ -363,7 +363,7 @@ Command.prototype.Authenticate = function(username, password) {
          message: 'Authentication successful. Welcome back, ' + self.Users[ self.username ].name + '!'
       });
 
-      // Send rooms
+      // TODO: Send rooms
       self.socket.emit('rooms', {
          'example.com:global': { label: 'Global Chat' },
          'example.com:sales': { label: 'Sales Chat' }
